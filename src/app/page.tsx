@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { formatDateTime, isWarrantyExpiringSoon } from "@/lib/utils";
 import { activityLabel } from "@/lib/inventory";
+import { ResetDemoButton } from "@/components/reset-demo-button";
 import Link from "next/link";
 
 // Render on each request instead of at build time — the dashboard reads the
@@ -72,6 +73,7 @@ export default async function DashboardPage() {
       <PageHeader
         title="Dashboard"
         description="Overview of your warehouse inventory"
+        actions={<ResetDemoButton />}
       />
 
       {/* Primary action: Scan a Part (prioritized on mobile via ordering) */}
