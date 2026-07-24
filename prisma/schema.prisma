@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Part {
+  id                 String        @id @default(cuid())
+  name               String
+  partNumber         String        @unique
+  manufacturer       String
+  modelNumber        String?
+  serialNumber       String?
+  totalQuantity      Int           @default(0)
+  reservedQuantity   Int           @default(0)
+  location           String
+  aisle              String?
+  shelf              String?
+  bin                String?
+  condition          String        @default("New")
+  warrantyExpiration DateTime?
+  notes              String?
+  imageUrl           String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  reservations       Reservation[]
+  activities         Activity[]
+}
+
+model Project {
+  id           String        @id @default(cuid())
+  name         String
+  description  String?
+  status       String        @default("Active")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  reservations Reservation[]
+  activities   Activity[]
+}
+
+model Reservation {
+  id        String   @id @default(cuid())
+  partId    String
+  projectId String
+  quantity  Int
+  status    String   @default("Reserved")
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  part      Part     @relation(fields: [partId], references: [id], onDelete: Cascade)
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Activity {
+  id        String       @id @default(cuid())
+  type      ActivityType
+  details   String?
+  partId    String?
+  projectId String?
+  createdAt DateTime     @default(now())
+  part      Part?        @relation(fields: [partId], references: [id], onDelete: SetNull)
+  project   Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+}
+
+enum ActivityType {
+  PART_CREATED
+  PART_UPDATED
+  PART_DELETED
+  QUANTITY_ADDED
+  QUANTITY_REMOVED
+  PART_MOVED
+  RESERVATION_CREATED
+  RESERVATION_UPDATED
+  RESERVATION_READY
+  RESERVATION_CANCELLED
+  PART_PICKED_UP
+  PART_RETURNED
+}
