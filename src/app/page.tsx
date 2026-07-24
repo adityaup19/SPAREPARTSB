@@ -17,6 +17,10 @@ import { formatDateTime, isWarrantyExpiringSoon } from "@/lib/utils";
 import { activityLabel } from "@/lib/inventory";
 import Link from "next/link";
 
+// Render on each request instead of at build time — the dashboard reads the
+// database, which isn't available/seeded during the Vercel build step.
+export const dynamic = "force-dynamic";
+
 async function getDashboardData() {
   const [parts, activities] = await Promise.all([
     prisma.part.findMany(),

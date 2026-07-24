@@ -31,16 +31,17 @@ export async function GET(request: NextRequest) {
     const where: Record<string, unknown> = {};
 
     if (search) {
+      const mode = "insensitive" as const;
       where.OR = [
-        { name: { contains: search } },
-        { partNumber: { contains: search } },
-        { manufacturer: { contains: search } },
-        { modelNumber: { contains: search } },
-        { serialNumber: { contains: search } },
-        { location: { contains: search } },
-        { aisle: { contains: search } },
-        { shelf: { contains: search } },
-        { bin: { contains: search } },
+        { name: { contains: search, mode } },
+        { partNumber: { contains: search, mode } },
+        { manufacturer: { contains: search, mode } },
+        { modelNumber: { contains: search, mode } },
+        { serialNumber: { contains: search, mode } },
+        { location: { contains: search, mode } },
+        { aisle: { contains: search, mode } },
+        { shelf: { contains: search, mode } },
+        { bin: { contains: search, mode } },
       ];
     }
 
