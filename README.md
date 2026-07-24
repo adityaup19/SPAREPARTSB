@@ -5,8 +5,8 @@ A modern internal warehouse spare parts inventory management system built with N
 ## Features
 
 ### Warehouse Worker Features
-- **Scan flow** (`/scan`): capture/upload a label photo, extract details (simulated
-  prototype OCR — no provider connected yet), review editable fields, detect duplicates,
+- **Scan flow** (`/scan`): capture/upload a label photo, extract details with **AI vision
+  (OpenAI)** securely on the server, review editable fields, detect duplicates,
   and either add received quantity to an existing part or create a new one
 - Duplicate detection by part number, and by manufacturer + model number
 - Adjust quantity (receive/remove) and move a part to a new location — all activity logged
@@ -58,22 +58,30 @@ and card layouts instead of wide tables.
 npm install
 ```
 
-2. Generate Prisma client and create database:
+2. Configure environment variables (required for AI label scanning):
+```bash
+# copy the template, then edit .env and set OPENAI_API_KEY
+cp .env.example .env
+```
+Set `OPENAI_API_KEY` to your OpenAI key. It is only ever read on the server
+(`src/lib/ocr.ts` via the `/api/scan/extract` route) and is never exposed to the browser.
+
+3. Generate Prisma client and create database:
 ```bash
 npm run db:push
 ```
 
-3. Seed the database with sample data:
+4. Seed the database with sample data:
 ```bash
 npm run db:seed
 ```
 
-4. Start the development server:
+5. Start the development server:
 ```bash
 npm run dev
 ```
 
-5. Open [http://localhost:3000](http://localhost:3000)
+6. Open [http://localhost:3000](http://localhost:3000)
 
 ## Database Commands
 

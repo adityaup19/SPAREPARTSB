@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="560" viewBox="0 0 900 560" font-family="Arial, Helvetica, sans-serif">
+  <defs>
+    <linearGradient id="plate" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4f5f7"/>
+      <stop offset="0.5" stop-color="#e5e7eb"/>
+      <stop offset="1" stop-color="#d1d5db"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="900" height="560" fill="#9ca3af"/>
+  <rect x="18" y="18" width="864" height="524" rx="10" fill="url(#plate)" stroke="#6b7280" stroke-width="3"/>
+
+  <!-- Mounting holes -->
+  <circle cx="52" cy="52" r="12" fill="#9ca3af" stroke="#4b5563" stroke-width="3"/>
+  <circle cx="848" cy="52" r="12" fill="#9ca3af" stroke="#4b5563" stroke-width="3"/>
+  <circle cx="52" cy="508" r="12" fill="#9ca3af" stroke="#4b5563" stroke-width="3"/>
+  <circle cx="848" cy="508" r="12" fill="#9ca3af" stroke="#4b5563" stroke-width="3"/>
+
+  <!-- Header / brand -->
+  <rect x="40" y="40" width="820" height="76" fill="#111827"/>
+  <text x="64" y="92" fill="#ffffff" font-size="44" font-weight="700" letter-spacing="1">JOHNSON CONTROLS</text>
+  <text x="820" y="88" fill="#ffffff" font-size="20" text-anchor="end">Building Automation</text>
+
+  <!-- Product name -->
+  <text x="64" y="168" fill="#111827" font-size="30" font-weight="700">Electric Non-Spring-Return Actuator</text>
+
+  <!-- Key fields -->
+  <text x="64" y="232" fill="#374151" font-size="24" font-weight="700">MODEL</text>
+  <text x="300" y="232" fill="#111827" font-size="30" font-weight="700">M9208-GGA-3</text>
+
+  <text x="64" y="286" fill="#374151" font-size="24" font-weight="700">PART NO.</text>
+  <text x="300" y="286" fill="#111827" font-size="30" font-weight="700">M9208-GGA-3</text>
+
+  <text x="64" y="340" fill="#374151" font-size="24" font-weight="700">SERIAL NO.</text>
+  <text x="300" y="340" fill="#111827" font-size="30" font-weight="700">JC24-0098821</text>
+
+  <!-- Specs block -->
+  <line x1="64" y1="368" x2="836" y2="368" stroke="#9ca3af" stroke-width="2"/>
+  <text x="64" y="408" fill="#374151" font-size="22">Supply: 24 VAC 50/60 Hz</text>
+  <text x="64" y="444" fill="#374151" font-size="22">Torque: 200 lb-in (22 Nm)</text>
+  <text x="64" y="480" fill="#374151" font-size="22">Control: 0(2)-10 VDC / Floating</text>
+
+  <text x="480" y="408" fill="#374151" font-size="22">Run Time: 90 s</text>
+  <text x="480" y="444" fill="#374151" font-size="22">Enclosure: NEMA 2 / IP42</text>
+  <text x="480" y="480" fill="#374151" font-size="22">Mfg Date: 2024-08</text>
+
+  <!-- Simple barcode -->
+  <g fill="#111827">
+    <rect x="620" y="150" width="4" height="120"/>
+    <rect x="628" y="150" width="8" height="120"/>
+    <rect x="640" y="150" width="3" height="120"/>
+    <rect x="648" y="150" width="10" height="120"/>
+    <rect x="662" y="150" width="4" height="120"/>
+    <rect x="670" y="150" width="6" height="120"/>
+    <rect x="680" y="150" width="3" height="120"/>
+    <rect x="688" y="150" width="9" height="120"/>
+    <rect x="701" y="150" width="4" height="120"/>
+    <rect x="709" y="150" width="7" height="120"/>
+    <rect x="720" y="150" width="3" height="120"/>
+    <rect x="727" y="150" width="10" height="120"/>
+    <rect x="742" y="150" width="4" height="120"/>
+    <rect x="750" y="150" width="6" height="120"/>
+    <rect x="760" y="150" width="3" height="120"/>
+    <rect x="768" y="150" width="9" height="120"/>
+    <rect x="782" y="150" width="5" height="120"/>
+    <rect x="792" y="150" width="4" height="120"/>
+    <rect x="800" y="150" width="8" height="120"/>
+    <rect x="812" y="150" width="3" height="120"/>
+  </g>
+  <text x="716" y="292" fill="#111827" font-size="18" text-anchor="middle" letter-spacing="2">M9208-GGA-3</text>
+</svg>

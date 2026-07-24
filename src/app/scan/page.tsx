@@ -25,7 +25,6 @@ import {
   ArrowRight,
   Package,
   LayoutDashboard,
-  FlaskConical,
 } from "lucide-react";
 import { formatLocation } from "@/lib/inventory";
 import type { PartFormData } from "@/types";
@@ -56,41 +55,32 @@ const emptyForm: PartFormData = {
   imageUrl: "",
 };
 
-// Simulated OCR samples. Replace with a real OCR provider later.
-const OCR_SAMPLES: Partial<PartFormData>[] = [
-  {
-    name: "Servo Drive Unit",
-    partNumber: "M9208-GGA-3",
-    manufacturer: "Mitsubishi Electric",
-    modelNumber: "MR-J4-70A",
-    serialNumber: "ME" + Date.now().toString().slice(-8),
-    condition: "New",
-  },
-  {
-    name: "Proximity Sensor",
-    partNumber: "XS612B1PAL2",
-    manufacturer: "Telemecanique",
-    modelNumber: "XS6-12B",
-    serialNumber: "TE" + Date.now().toString().slice(-8),
-    condition: "New",
-  },
-  {
-    name: "Circuit Breaker",
-    partNumber: "NSX100F-TM80D",
-    manufacturer: "Schneider Electric",
-    modelNumber: "NSX100F",
-    serialNumber: "SC" + Date.now().toString().slice(-8),
-    condition: "New",
-  },
-  {
-    name: "Roller Chain Sprocket",
-    partNumber: "40B17-1",
-    manufacturer: "Martin Sprocket",
-    modelNumber: "40B17",
-    serialNumber: "",
-    condition: "New",
-  },
-];
+/**
+ * Downscale/re-encode an image data URL on the client before sending it to the
+ * server. Keeps upload size and vision-API cost down while preserving legibility.
+ */
+async function downscaleImage(dataUrl: string, maxDim = 1280): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new window.Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(dataUrl);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL("image/jpeg", 0.85));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
 
 interface DuplicateInfo {
   id: string;
@@ -102,6 +92,7 @@ interface DuplicateInfo {
   aisle: string | null;
   shelf: string | null;
   bin: string | null;
+  imageUrl: string | null;
   matchType: "partNumber" | "modelNumber" | null;
 }
 
@@ -147,12 +138,64 @@ export default function ScanPage() {
 
   const runExtraction = async () => {
     setExtracting(true);
-    await new Promise((r) => setTimeout(r, 1500));
-    const sample = OCR_SAMPLES[Math.floor(Math.random() * OCR_SAMPLES.length)];
-    setForm((prev) => ({ ...prev, ...sample, imageUrl: image }));
-    setExtracting(false);
-    setExtracted(true);
-    setStep("review");
+    setError("");
+    try {
+      const compact = await downscaleImage(image);
+      const res = await fetch("/api/scan/extract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: compact }),
+      });
+      const payload = await res.json();
+      if (!res.ok) {
+        throw new Error(payload.error || "Failed to analyze the image.");
+      }
+
+      const d = payload.data as {
+        name?: string;
+        partNumber?: string;
+        manufacturer?: string;
+        modelNumber?: string;
+        serialNumber?: string;
+        description?: string;
+        warrantyExpiration?: string;
+        dateInfo?: string;
+        visibleText?: string;
+      };
+
+      // Build notes from description + any other visible text/date, without inventing.
+      const noteParts: string[] = [];
+      if (d.description) noteParts.push(d.description);
+      if (d.dateInfo) noteParts.push(`Date on label: ${d.dateInfo}`);
+      if (d.visibleText) noteParts.push(`Label text: ${d.visibleText}`);
+
+      const isValidDate =
+        d.warrantyExpiration && !Number.isNaN(Date.parse(d.warrantyExpiration));
+
+      setForm((prev) => ({
+        ...prev,
+        name: d.name || prev.name,
+        partNumber: d.partNumber || prev.partNumber,
+        manufacturer: d.manufacturer || prev.manufacturer,
+        modelNumber: d.modelNumber || prev.modelNumber,
+        serialNumber: d.serialNumber || prev.serialNumber,
+        warrantyExpiration: isValidDate
+          ? new Date(d.warrantyExpiration as string).toISOString().split("T")[0]
+          : prev.warrantyExpiration,
+        notes: noteParts.join("\n") || prev.notes,
+        imageUrl: image,
+      }));
+      setExtracted(true);
+      setStep("review");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "We couldn't analyze that image. Try again or enter details manually."
+      );
+    } finally {
+      setExtracting(false);
+    }
   };
 
   const skipToManual = () => {
@@ -193,6 +236,7 @@ export default function ScanPage() {
           aisle: data.part.aisle,
           shelf: data.part.shelf,
           bin: data.part.bin,
+          imageUrl: data.part.imageUrl ?? null,
           matchType: data.matchType,
         });
       } else {
@@ -381,13 +425,13 @@ export default function ScanPage() {
               </Button>
             </div>
 
-            <Alert variant="warning">
+            <Alert variant="info">
               <div className="flex items-start gap-2">
-                <FlaskConical className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <Sparkles className="w-4 h-4 mt-0.5 flex-shrink-0" />
                 <span>
-                  <strong>Prototype extraction.</strong> No OCR provider is connected yet.
-                  &quot;Extract Part Details&quot; fills the form with sample data so you can test
-                  the workflow. Real label reading can be added later.
+                  <strong>AI-powered extraction.</strong> The photo is analyzed securely on the
+                  server to read the label. Only clearly visible text is extracted — nothing is
+                  invented. You can review and edit everything before saving.
                 </span>
               </div>
             </Alert>
@@ -401,10 +445,11 @@ export default function ScanPage() {
           {extracted && (
             <Alert variant="info">
               <div className="flex items-start gap-2">
-                <FlaskConical className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <Sparkles className="w-4 h-4 mt-0.5 flex-shrink-0" />
                 <span>
-                  Details below were filled by the <strong>prototype extractor</strong> (development
-                  mode). Please review and correct every field before saving.
+                  Fields below were read from the photo by <strong>AI</strong>. Please review and
+                  correct every field — the AI only fills what it can clearly see, so some fields
+                  may be blank.
                 </span>
               </div>
             </Alert>
@@ -609,8 +654,20 @@ export default function ScanPage() {
             </p>
 
             <div className="bg-gray-50 rounded-lg p-4 mb-4 space-y-1">
-              <p className="font-medium text-gray-900">{duplicate.name}</p>
-              <p className="text-sm text-gray-500 font-mono">{duplicate.partNumber}</p>
+              <div className="flex items-center gap-3">
+                {duplicate.imageUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={duplicate.imageUrl}
+                    alt={duplicate.name}
+                    className="w-14 h-14 rounded-md object-cover bg-white border border-gray-200 flex-shrink-0"
+                  />
+                )}
+                <div className="min-w-0">
+                  <p className="font-medium text-gray-900">{duplicate.name}</p>
+                  <p className="text-sm text-gray-500 font-mono">{duplicate.partNumber}</p>
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-2 pt-2 text-sm">
                 <span className="text-gray-500">Current total</span>
                 <span className="text-right font-medium">{duplicate.totalQuantity}</span>

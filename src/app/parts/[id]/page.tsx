@@ -436,6 +436,20 @@ export default function PartDetailsPage({ params }: { params: Promise<{ id: stri
 
         {/* Sidebar */}
         <div className="space-y-6">
+          {/* Part Image */}
+          {part.imageUrl && (
+            <Card>
+              <CardContent className="p-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={part.imageUrl}
+                  alt={part.name}
+                  className="w-full h-48 object-cover rounded-t-xl bg-gray-100"
+                />
+              </CardContent>
+            </Card>
+          )}
+
           {/* Quantity Card */}
           <Card>
             <CardContent className="pt-6">

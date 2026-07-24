@@ -177,11 +177,25 @@ export default function InventoryPage() {
                     return (
                       <TableRow key={part.id}>
                         <TableCell>
-                          <div>
-                            <p className="font-medium">{part.name}</p>
-                            {part.modelNumber && (
-                              <p className="text-xs text-gray-500">Model: {part.modelNumber}</p>
+                          <div className="flex items-center gap-3">
+                            {part.imageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={part.imageUrl}
+                                alt={part.name}
+                                className="w-10 h-10 rounded-md object-cover bg-gray-100 flex-shrink-0"
+                              />
+                            ) : (
+                              <span className="flex items-center justify-center w-10 h-10 rounded-md bg-gray-100 text-gray-400 flex-shrink-0">
+                                <Package className="w-5 h-5" />
+                              </span>
                             )}
+                            <div className="min-w-0">
+                              <p className="font-medium">{part.name}</p>
+                              {part.modelNumber && (
+                                <p className="text-xs text-gray-500">Model: {part.modelNumber}</p>
+                              )}
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell className="font-mono text-sm">{part.partNumber}</TableCell>
@@ -230,10 +244,24 @@ export default function InventoryPage() {
                   <Card className="active:bg-gray-50">
                     <CardContent className="py-4">
                       <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="font-medium text-gray-900 truncate">{part.name}</p>
-                          <p className="text-sm text-gray-500 font-mono">{part.partNumber}</p>
-                          <p className="text-xs text-gray-500 mt-1">{formatLocation(part)}</p>
+                        <div className="flex items-start gap-3 min-w-0">
+                          {part.imageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={part.imageUrl}
+                              alt={part.name}
+                              className="w-12 h-12 rounded-md object-cover bg-gray-100 flex-shrink-0"
+                            />
+                          ) : (
+                            <span className="flex items-center justify-center w-12 h-12 rounded-md bg-gray-100 text-gray-400 flex-shrink-0">
+                              <Package className="w-6 h-6" />
+                            </span>
+                          )}
+                          <div className="min-w-0">
+                            <p className="font-medium text-gray-900 truncate">{part.name}</p>
+                            <p className="text-sm text-gray-500 font-mono">{part.partNumber}</p>
+                            <p className="text-xs text-gray-500 mt-1">{formatLocation(part)}</p>
+                          </div>
                         </div>
                         <Badge className={getConditionColor(part.condition)}>
                           {part.condition}
