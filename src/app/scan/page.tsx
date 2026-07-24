@@ -105,7 +105,11 @@ interface ConfirmInfo {
 }
 
 export default function ScanPage() {
+  // Two inputs: one that opens the camera directly, and one that opens the
+  // photo library / file picker. On phones, `capture` forces the camera and
+  // hides the gallery, so gallery uploads need a separate input without it.
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const [step, setStep] = useState<Step>("capture");
   const [image, setImage] = useState<string>("");
@@ -354,11 +358,20 @@ export default function ScanPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Camera capture (mobile opens the rear camera directly). */}
             <input
               type="file"
               ref={fileInputRef}
               accept="image/*"
               capture="environment"
+              onChange={handleFile}
+              className="hidden"
+            />
+            {/* Gallery / file picker (no capture -> lets you choose an existing photo). */}
+            <input
+              type="file"
+              ref={galleryInputRef}
+              accept="image/*"
               onChange={handleFile}
               className="hidden"
             />
@@ -389,7 +402,7 @@ export default function ScanPage() {
                   <Button
                     variant="outline"
                     size="lg"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => galleryInputRef.current?.click()}
                   >
                     <RefreshCw className="w-4 h-4 mr-2" />
                     Retake / Replace
@@ -415,7 +428,7 @@ export default function ScanPage() {
               <Button
                 variant="outline"
                 className="flex-1"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => galleryInputRef.current?.click()}
               >
                 <Upload className="w-4 h-4 mr-2" />
                 Upload an existing photo
