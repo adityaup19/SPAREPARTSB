@@ -21,6 +21,26 @@ Set `DATABASE_URL`, `DIRECT_URL`, `NEXT_PUBLIC_SUPABASE_URL`,
 In Supabase Auth URL Configuration, set the site URL to the Vercel production
 URL and allow `https://<production-host>/auth/callback`.
 
+## Database exposure
+
+Application tables are reachable only through the app. Row level security is on
+for every table in `public` with no policies, and the `anon` and `authenticated`
+API roles hold no grants, so the Supabase Data API cannot read or write
+inventory even though the anon key is public. Prisma connects as the table
+owner and is exempt from RLS. Confirm after any schema change:
+
+```sql
+select relname, relrowsecurity from pg_class c
+join pg_namespace n on n.oid = c.relnamespace
+where n.nspname = 'public' and c.relkind = 'r';
+
+select grantee, table_name from information_schema.role_table_grants
+where table_schema = 'public' and grantee in ('anon', 'authenticated');
+```
+
+The first query must report `true` for all tables and the second must return no
+rows. Never add RLS policies for `anon` on these tables.
+
 ## Release
 
 1. Confirm Supabase automated backups are enabled and take a manual backup
