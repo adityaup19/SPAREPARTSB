@@ -7,7 +7,8 @@ const serverEnvSchema = z.object({
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(20),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(20),
   OPENAI_API_KEY: z.string().min(20),
-  ADMIN_EMAILS: z.string().min(3),
+  // Optional: only needed until the first administrator exists.
+  ADMIN_EMAILS: z.string().optional(),
   OCR_DAILY_USER_LIMIT: z.coerce.number().int().positive().default(100),
 });
 

@@ -66,8 +66,9 @@ npm install
 # copy the template, then edit .env
 cp .env.example .env
 ```
-Set both database URLs, the Supabase URL/keys, `ADMIN_EMAILS`, and
-`OPENAI_API_KEY`. Service-role and OpenAI keys are server-only.
+Set both database URLs, the Supabase URL/keys, and `OPENAI_API_KEY`, plus
+`ADMIN_EMAILS` until the first administrator has signed in. Service-role and
+OpenAI keys are server-only.
 
 3. Generate Prisma and deploy versioned migrations:
 ```bash
@@ -131,6 +132,16 @@ src/
 4. Disable public sign-up in Supabase Auth; add the production callback URL
 5. Run `npm run db:migrate:deploy`
 6. Deploy and sign in with an email listed in `ADMIN_EMAILS`
+
+## Users and roles
+
+Supabase Auth only proves identity. Roles live in the `AppUser` table and are
+read on every request, so an admin changing someone's role takes effect on their
+next action with no redeploy. Admins invite users, change roles, disable or
+reactivate accounts, and remove people from **User Admin** in the app. A sign-in
+identity with no `AppUser` row has no access, so users cannot be added by editing
+Supabase or Vercel. `ADMIN_EMAILS` only creates the first administrator and stops
+having any effect once one exists.
 
 See [docs/PILOT.md](docs/PILOT.md) for roles, backup, rollback, and release steps.
 

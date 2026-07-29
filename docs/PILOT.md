@@ -2,21 +2,38 @@
 
 ## Access and roles
 
-- Supabase Auth must have public sign-up disabled.
-- `ADMIN_EMAILS` bootstraps the first administrator on first sign-in.
-- Admins invite users from **User Admin**. Invitation links return through
-  `/auth/callback` so the user can set a password.
+The website is the only place users and roles are managed. Supabase Auth proves
+identity; the `AppUser` table decides who may enter and what they may do, and it
+is read on every request, so changes apply instantly without a redeploy.
+
 - Workers can view/search, scan/receive, and move parts.
 - Managers can additionally edit inventory, import/export, manage projects, and
   manage reservations.
 - Admins can additionally delete records and administer users.
 
+Admins invite people from **User Admin**, where they can also change a role,
+disable or reactivate an account, and remove a user. Invitation links return
+through `/auth/callback` so the person sets their own password.
+
+A signed-in identity with no `AppUser` row has no access at all, so creating a
+user directly in Supabase Authentication grants nothing. Public sign-up should
+still be disabled in Supabase as a second line of defence.
+
+### First administrator only
+
+`ADMIN_EMAILS` is a one-time bootstrap. On sign-in, a listed email is promoted to
+Admin only when the database contains zero active admins. After that first admin
+exists the variable has no effect and can be deleted from Vercel; it can never
+re-promote anyone, including a user who was demoted or removed.
+
+To recover from losing every admin, set `ADMIN_EMAILS` again and sign in.
+
 ## Required production configuration
 
 Set `DATABASE_URL`, `DIRECT_URL`, `NEXT_PUBLIC_SUPABASE_URL`,
-`NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_EMAILS`,
-`OPENAI_API_KEY`, and `OCR_DAILY_USER_LIMIT` in Vercel. Never set
-`ALLOW_DEMO_SEED` in production.
+`NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`,
+and `OCR_DAILY_USER_LIMIT` in Vercel, plus `ADMIN_EMAILS` for the first sign-in
+only. Never set `ALLOW_DEMO_SEED` in production.
 
 In Supabase Auth URL Configuration, set the site URL to the Vercel production
 URL and allow `https://<production-host>/auth/callback`.

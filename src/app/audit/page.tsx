@@ -11,9 +11,16 @@ type Activity = {
   source: string;
   createdAt: string;
   actor: { email: string; displayName: string | null; role: string } | null;
+  metadata: { actorEmail?: string } | null;
   part: { name: string; partNumber: string } | null;
   project: { name: string } | null;
 };
+
+function actorLabel(item: Activity) {
+  if (item.actor) return item.actor.displayName || item.actor.email;
+  if (item.metadata?.actorEmail) return `${item.metadata.actorEmail} (removed)`;
+  return "System";
+}
 
 export default function AuditPage() {
   const [items, setItems] = useState<Activity[]>([]);
@@ -69,9 +76,7 @@ export default function AuditPage() {
                 <td className="whitespace-nowrap px-4 py-3 text-gray-500">
                   {formatDateTime(item.createdAt)}
                 </td>
-                <td className="px-4 py-3">
-                  {item.actor?.displayName || item.actor?.email || "System"}
-                </td>
+                <td className="px-4 py-3">{actorLabel(item)}</td>
                 <td className="px-4 py-3">
                   <p className="font-medium text-gray-900">{item.type.replaceAll("_", " ")}</p>
                   <p className="text-gray-500">{item.details}</p>

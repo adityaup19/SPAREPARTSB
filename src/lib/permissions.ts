@@ -34,3 +34,30 @@ const permissions: Record<AppRole, ReadonlySet<AppAction>> = {
 export function hasPermission(role: AppRole, action: AppAction) {
   return permissions[role].has(action);
 }
+
+export function bootstrapAdminEmails(value: string | undefined): Set<string> {
+  return new Set(
+    (value ?? "")
+      .split(",")
+      .map((email) => email.trim().toLowerCase())
+      .filter(Boolean)
+  );
+}
+
+/**
+ * ADMIN_EMAILS exists only to create the very first administrator. Once any
+ * active admin exists, roles come exclusively from the database, so the
+ * variable stops having any effect and can never re-promote anyone.
+ */
+export function canBootstrapAdmin({
+  email,
+  activeAdminCount,
+  allowedEmails,
+}: {
+  email: string;
+  activeAdminCount: number;
+  allowedEmails: Set<string>;
+}): boolean {
+  if (activeAdminCount > 0) return false;
+  return allowedEmails.has(email.trim().toLowerCase());
+}

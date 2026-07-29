@@ -124,6 +124,7 @@ export function activityLabel(type: ActivityType): string {
     INVENTORY_EXPORTED: "Inventory Exported",
     USER_INVITED: "User Invited",
     USER_ROLE_CHANGED: "User Access Updated",
+    USER_REMOVED: "User Removed",
   };
   return labels[type] ?? type;
 }

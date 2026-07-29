@@ -16,12 +16,17 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
     take: 10_000,
   });
+  const removedActorEmail = (metadata: unknown) =>
+    metadata && typeof metadata === "object" && "actorEmail" in metadata
+      ? String((metadata as { actorEmail?: unknown }).actorEmail ?? "")
+      : "";
+
   const rows = [
     ["Timestamp", "User", "Role", "Action", "Details", "Part Number", "Project", "Source"].map(cell).join(","),
     ...activities.map((item) =>
       [
         item.createdAt.toISOString(),
-        item.actor?.email || "System",
+        item.actor?.email || removedActorEmail(item.metadata) || "System",
         item.actor?.role || "",
         item.type,
         item.details,

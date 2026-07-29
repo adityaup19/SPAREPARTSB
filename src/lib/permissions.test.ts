@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hasPermission } from "./permissions";
+import { bootstrapAdminEmails, canBootstrapAdmin, hasPermission } from "./permissions";
 
 describe("role permissions", () => {
   it("lets workers receive and move stock but blocks management", () => {
@@ -19,5 +19,45 @@ describe("role permissions", () => {
   it("reserves user and destructive controls for admins", () => {
     expect(hasPermission("ADMIN", "user:manage")).toBe(true);
     expect(hasPermission("ADMIN", "inventory:delete")).toBe(true);
+  });
+});
+
+describe("first admin bootstrap", () => {
+  const allowedEmails = bootstrapAdminEmails(" Warehouse.Admin@company.com , ops@company.com ");
+
+  it("promotes a listed email only while no admin exists", () => {
+    expect(
+      canBootstrapAdmin({
+        email: "warehouse.admin@company.com",
+        activeAdminCount: 0,
+        allowedEmails,
+      })
+    ).toBe(true);
+  });
+
+  it("stops having any effect once an admin exists", () => {
+    expect(
+      canBootstrapAdmin({
+        email: "warehouse.admin@company.com",
+        activeAdminCount: 1,
+        allowedEmails,
+      })
+    ).toBe(false);
+  });
+
+  it("never promotes an unlisted email", () => {
+    expect(
+      canBootstrapAdmin({ email: "intern@company.com", activeAdminCount: 0, allowedEmails })
+    ).toBe(false);
+  });
+
+  it("grants nobody access when the variable is unset", () => {
+    expect(
+      canBootstrapAdmin({
+        email: "anyone@company.com",
+        activeAdminCount: 0,
+        allowedEmails: bootstrapAdminEmails(undefined),
+      })
+    ).toBe(false);
   });
 });
