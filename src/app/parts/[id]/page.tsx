@@ -42,6 +42,7 @@ import {
 import Link from "next/link";
 import { formatDate, formatDateTime, getConditionColor, getStatusColor, daysUntil } from "@/lib/utils";
 import type { Part, Reservation, Activity, Project } from "@/types";
+import { useCurrentUser } from "@/components/auth-provider";
 
 interface PartDetails extends Part {
   reservations: (Reservation & { project: Project })[];
@@ -73,6 +74,8 @@ const activityLabels: Record<string, string> = {
 export default function PartDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const currentUser = useCurrentUser();
+  const canManage = currentUser.role === "ADMIN" || currentUser.role === "MANAGER";
 
   const [part, setPart] = useState<PartDetails | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -129,11 +132,14 @@ export default function PartDetailsPage({ params }: { params: Promise<{ id: stri
     setError("");
     setSuccess("");
     try {
+      const editable = { ...editData };
+      delete editable.totalQuantity;
+      delete editable.reservedQuantity;
       const response = await fetch(`/api/parts/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...editData,
+          ...editable,
           warrantyExpiration: editData.warrantyExpiration
             ? new Date(editData.warrantyExpiration).toISOString()
             : null,
@@ -279,14 +285,14 @@ export default function PartDetailsPage({ params }: { params: Promise<{ id: stri
             </Link>
             {!editing && (
               <>
-                <Button variant="outline" onClick={() => setEditing(true)}>
+                {canManage && <Button variant="outline" onClick={() => setEditing(true)}>
                   <Edit className="w-4 h-4 mr-2" />
                   Edit
-                </Button>
-                <Button variant="danger" onClick={() => setShowDeleteModal(true)}>
+                </Button>}
+                {currentUser.role === "ADMIN" && <Button variant="danger" onClick={() => setShowDeleteModal(true)}>
                   <Trash2 className="w-4 h-4 mr-2" />
                   Delete
-                </Button>
+                </Button>}
               </>
             )}
           </div>
@@ -319,7 +325,6 @@ export default function PartDetailsPage({ params }: { params: Promise<{ id: stri
                     <Input label="Serial Number" value={editData.serialNumber || ""} onChange={(e) => setEditData({ ...editData, serialNumber: e.target.value })} />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Input label="Total Quantity" type="number" min="0" value={editData.totalQuantity ?? 0} onChange={(e) => setEditData({ ...editData, totalQuantity: parseInt(e.target.value) || 0 })} />
                     <Select label="Condition" options={conditionOptions} value={editData.condition || "New"} onChange={(e) => setEditData({ ...editData, condition: e.target.value })} />
                   </div>
                   <Input label="Warranty Expiration" type="date" value={editData.warrantyExpiration ? new Date(editData.warrantyExpiration).toISOString().split("T")[0] : ""} onChange={(e) => setEditData({ ...editData, warrantyExpiration: e.target.value ? new Date(e.target.value) : null })} />
@@ -400,10 +405,10 @@ export default function PartDetailsPage({ params }: { params: Promise<{ id: stri
                 <ClipboardList className="w-5 h-5" />
                 Reservations
               </CardTitle>
-              <Button size="sm" onClick={() => setShowReserveModal(true)} disabled={availableQuantity <= 0}>
+              {canManage && <Button size="sm" onClick={() => setShowReserveModal(true)} disabled={availableQuantity <= 0}>
                 <Plus className="w-4 h-4 mr-1" />
                 Reserve
-              </Button>
+              </Button>}
             </CardHeader>
             <CardContent className="p-0">
               {part.reservations.length === 0 ? (
@@ -474,10 +479,10 @@ export default function PartDetailsPage({ params }: { params: Promise<{ id: stri
                 </div>
               </div>
               <div className="mt-6 grid grid-cols-1 gap-2">
-                <Button variant="outline" onClick={() => setShowAdjustModal(true)}>
+                {canManage && <Button variant="outline" onClick={() => setShowAdjustModal(true)}>
                   <Plus className="w-4 h-4 mr-1" />
                   Adjust Quantity
-                </Button>
+                </Button>}
                 <Button variant="outline" onClick={openMove}>
                   <Move className="w-4 h-4 mr-2" />
                   Move Location
@@ -584,7 +589,7 @@ export default function PartDetailsPage({ params }: { params: Promise<{ id: stri
             onChange={(e) => setAdjustData({ ...adjustData, amount: parseInt(e.target.value) || 1 })}
           />
           <Input
-            label="Reason (optional)"
+            label="Reason *"
             value={adjustData.reason}
             onChange={(e) => setAdjustData({ ...adjustData, reason: e.target.value })}
             placeholder="e.g., received shipment, damaged units"
@@ -594,7 +599,7 @@ export default function PartDetailsPage({ params }: { params: Promise<{ id: stri
           </p>
           <div className="flex justify-end gap-3 pt-2">
             <Button variant="ghost" onClick={() => setShowAdjustModal(false)}>Cancel</Button>
-            <Button onClick={handleAdjust} disabled={saving}>{saving ? "Saving..." : "Apply"}</Button>
+            <Button onClick={handleAdjust} disabled={saving || adjustData.reason.trim().length < 3}>{saving ? "Saving..." : "Apply"}</Button>
           </div>
         </div>
       </Modal>

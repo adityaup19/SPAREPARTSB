@@ -31,6 +31,11 @@ model Part {
   updatedAt          DateTime      @updatedAt
   reservations       Reservation[]
   activities         Activity[]
+
+  @@index([manufacturer])
+  @@index([modelNumber])
+  @@index([location, aisle, shelf, bin])
+  @@index([updatedAt])
 }
 
 model Project {
@@ -42,6 +47,8 @@ model Project {
   updatedAt    DateTime      @updatedAt
   reservations Reservation[]
   activities   Activity[]
+
+  @@index([status])
 }
 
 model Reservation {
@@ -55,17 +62,54 @@ model Reservation {
   updatedAt DateTime @updatedAt
   part      Part     @relation(fields: [partId], references: [id], onDelete: Cascade)
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([partId, status])
+  @@index([projectId, status])
+  @@index([createdAt])
 }
 
 model Activity {
-  id        String       @id @default(cuid())
-  type      ActivityType
-  details   String?
-  partId    String?
-  projectId String?
-  createdAt DateTime     @default(now())
-  part      Part?        @relation(fields: [partId], references: [id], onDelete: SetNull)
-  project   Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  id          String         @id @default(cuid())
+  type        ActivityType
+  details     String?
+  partId      String?
+  projectId   String?
+  actorId     String?
+  source      ActivitySource @default(WEB)
+  metadata    Json?
+  createdAt   DateTime       @default(now())
+  part        Part?          @relation(fields: [partId], references: [id], onDelete: SetNull)
+  project     Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  actor       AppUser?       @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([actorId, createdAt])
+  @@index([partId, createdAt])
+  @@index([projectId, createdAt])
+}
+
+model AppUser {
+  id          String     @id
+  email       String     @unique
+  displayName String?
+  role        UserRole   @default(WORKER)
+  active      Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  activities  Activity[]
+  scanUsage   ScanUsage[]
+}
+
+model ScanUsage {
+  id        String   @id @default(cuid())
+  userId    String
+  day       String
+  count     Int      @default(0)
+  updatedAt DateTime @updatedAt
+  user      AppUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, day])
+  @@index([day])
 }
 
 enum ActivityType {
@@ -81,4 +125,24 @@ enum ActivityType {
   RESERVATION_CANCELLED
   PART_PICKED_UP
   PART_RETURNED
+  PROJECT_CREATED
+  PROJECT_UPDATED
+  PROJECT_DELETED
+  INVENTORY_IMPORTED
+  INVENTORY_EXPORTED
+  USER_INVITED
+  USER_ROLE_CHANGED
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  WORKER
+}
+
+enum ActivitySource {
+  WEB
+  SCAN
+  IMPORT
+  SYSTEM
 }

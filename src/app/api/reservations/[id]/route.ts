@@ -6,7 +6,9 @@ import {
   recomputeReservedQuantity,
   RESERVATION_STATUSES,
   totalQuantityDeltaForTransition,
+  withSerializableTransaction,
 } from "@/lib/inventory";
+import { authorize } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -20,6 +22,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await authorize();
+  if (auth.response) return auth.response;
   try {
     const { id } = await params;
     const reservation = await prisma.reservation.findUnique({
@@ -48,12 +52,14 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await authorize(["ADMIN", "MANAGER"]);
+  if (auth.response) return auth.response;
   try {
     const { id } = await params;
     const body = await request.json();
     const validatedData = updateReservationSchema.parse(body);
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await withSerializableTransaction(async (tx) => {
       const existing = await tx.reservation.findUnique({
         where: { id },
         include: { part: true, project: true },
@@ -128,6 +134,12 @@ export async function PUT(
         details,
         partId: part.id,
         projectId: existing.projectId,
+        actorId: auth.user.id,
+        metadata: {
+          fromStatus: existing.status,
+          toStatus: newStatus,
+          quantity: newQuantity,
+        },
       });
 
       return { reservation };
@@ -158,10 +170,12 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await authorize(["ADMIN", "MANAGER"]);
+  if (auth.response) return auth.response;
   try {
     const { id } = await params;
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await withSerializableTransaction(async (tx) => {
       const reservation = await tx.reservation.findUnique({
         where: { id },
         include: { part: true, project: true },
@@ -179,6 +193,8 @@ export async function DELETE(
         details: `Cancelled reservation for ${reservation.quantity} ${reservation.part.name}`,
         partId: reservation.partId,
         projectId: reservation.projectId,
+        actorId: auth.user.id,
+        metadata: { quantity: reservation.quantity },
       });
 
       return { ok: true };

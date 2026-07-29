@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/db";
-import { logActivity } from "@/lib/inventory";
+import { logActivity, withSerializableTransaction } from "@/lib/inventory";
+import { authorize } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -11,31 +11,33 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await authorize();
+  if (auth.response) return auth.response;
   try {
     const { id } = await params;
     const body = await request.json();
     const { quantity } = addQuantitySchema.parse(body);
 
-    const part = await prisma.part.findUnique({
-      where: { id },
+    const updatedPart = await withSerializableTransaction(async (tx) => {
+      const part = await tx.part.findUnique({ where: { id } });
+      if (!part) return null;
+      const updated = await tx.part.update({
+        where: { id },
+        data: { totalQuantity: { increment: quantity } },
+      });
+      await logActivity(tx, {
+        type: "QUANTITY_ADDED",
+        details: `Received ${quantity} units of ${part.name}. New total: ${updated.totalQuantity}`,
+        partId: part.id,
+        actorId: auth.user.id,
+        source: "SCAN",
+        metadata: { delta: quantity, previousTotal: part.totalQuantity, newTotal: updated.totalQuantity },
+      });
+      return updated;
     });
-
-    if (!part) {
+    if (!updatedPart) {
       return NextResponse.json({ error: "Part not found" }, { status: 404 });
     }
-
-    const updatedPart = await prisma.part.update({
-      where: { id },
-      data: {
-        totalQuantity: part.totalQuantity + quantity,
-      },
-    });
-
-    await logActivity(prisma, {
-      type: "QUANTITY_ADDED",
-      details: `Added ${quantity} units to ${part.name}. New total: ${updatedPart.totalQuantity}`,
-      partId: part.id,
-    });
 
     return NextResponse.json(updatedPart);
   } catch (error) {

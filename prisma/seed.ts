@@ -4,6 +4,14 @@ import { seedDatabase } from "../src/lib/seed-data";
 const prisma = new PrismaClient();
 
 async function main() {
+  if (
+    process.env.ALLOW_DEMO_SEED !== "yes" ||
+    process.env.VERCEL_ENV === "production"
+  ) {
+    throw new Error(
+      "Demo seed blocked. Set ALLOW_DEMO_SEED=yes in a non-production environment to continue."
+    );
+  }
   console.log("Seeding database...");
   const result = await seedDatabase(prisma);
   console.log("Database seeded successfully!");

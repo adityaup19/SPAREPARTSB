@@ -41,15 +41,18 @@ and card layouts instead of wide tables.
 - **Framework**: Next.js 15 (App Router)
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS
-- **Database**: SQLite (via Prisma) - easily swappable to PostgreSQL
+- **Database**: Supabase PostgreSQL via Prisma
+- **Authentication**: Supabase Auth with Admin, Manager, and Worker roles
+- **File storage**: Supabase Storage for scanned part images
 - **Icons**: Lucide React
 - **Validation**: Zod
+- **Testing**: Vitest and GitHub Actions
 
 ## Getting Started
 
 ### Prerequisites
-- Node.js 18+ 
-- npm or yarn
+- Node.js 22+
+- A Supabase project, an OpenAI API key, and npm
 
 ### Installation
 
@@ -58,22 +61,23 @@ and card layouts instead of wide tables.
 npm install
 ```
 
-2. Configure environment variables (required for AI label scanning):
+2. Configure all environment variables:
 ```bash
-# copy the template, then edit .env and set OPENAI_API_KEY
+# copy the template, then edit .env
 cp .env.example .env
 ```
-Set `OPENAI_API_KEY` to your OpenAI key. It is only ever read on the server
-(`src/lib/ocr.ts` via the `/api/scan/extract` route) and is never exposed to the browser.
+Set both database URLs, the Supabase URL/keys, `ADMIN_EMAILS`, and
+`OPENAI_API_KEY`. Service-role and OpenAI keys are server-only.
 
-3. Generate Prisma client and create database:
+3. Generate Prisma and deploy versioned migrations:
 ```bash
-npm run db:push
+npm run db:generate
+npm run db:migrate:deploy
 ```
 
-4. Seed the database with sample data:
+4. Optional local demo seed (destructive and blocked in production):
 ```bash
-npm run db:seed
+ALLOW_DEMO_SEED=yes npm run db:seed:demo
 ```
 
 5. Start the development server:
@@ -87,10 +91,12 @@ npm run dev
 
 | Command | Description |
 |---------|-------------|
-| `npm run db:push` | Push schema to database |
-| `npm run db:seed` | Seed with sample data |
-| `npm run db:reset` | Reset and reseed database |
+| `npm run db:migrate` | Create/apply a development migration |
+| `npm run db:migrate:deploy` | Apply reviewed production migrations |
+| `npm run db:seed:demo` | Destructive demo seed; requires explicit opt-in |
 | `npm run db:studio` | Open Prisma Studio |
+| `npm run typecheck` | Check TypeScript |
+| `npm test` | Run business-rule tests |
 
 ## Project Structure
 
@@ -116,23 +122,17 @@ src/
     └── index.ts          # TypeScript types
 ```
 
-## Future Enhancements
-
-The codebase is structured to easily add:
-- **PostgreSQL**: Change datasource in `prisma/schema.prisma`
-- **Google Vision OCR**: Add to `/api/ocr` endpoint
-- **Microsoft Authentication**: Add NextAuth.js with Microsoft provider
-- **Azure Integration**: Add Azure SDK for cloud services
-
 ## Deployment to Vercel
 
 1. Push to GitHub
 2. Connect repository to Vercel
-3. Add environment variables (if using PostgreSQL):
-   - `DATABASE_URL`: Your database connection string
-4. Deploy
+3. Add every production variable documented in `.env.example` except
+   `ALLOW_DEMO_SEED`
+4. Disable public sign-up in Supabase Auth; add the production callback URL
+5. Run `npm run db:migrate:deploy`
+6. Deploy and sign in with an email listed in `ADMIN_EMAILS`
 
-For SQLite (development only), the database will be created automatically.
+See [docs/PILOT.md](docs/PILOT.md) for roles, backup, rollback, and release steps.
 
 ## License
 

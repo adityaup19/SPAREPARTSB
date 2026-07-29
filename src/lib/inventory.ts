@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import type { ActivityType, Prisma, PrismaClient } from "@prisma/client";
+import { Prisma, type ActivityType, type PrismaClient } from "@prisma/client";
 
 /**
  * Business logic for inventory management.
@@ -64,6 +64,9 @@ export async function logActivity(
     details?: string;
     partId?: string | null;
     projectId?: string | null;
+    actorId?: string | null;
+    source?: "WEB" | "SCAN" | "IMPORT" | "SYSTEM";
+    metadata?: Prisma.InputJsonValue;
   }
 ): Promise<void> {
   await db.activity.create({
@@ -72,8 +75,31 @@ export async function logActivity(
       details: data.details,
       partId: data.partId ?? null,
       projectId: data.projectId ?? null,
+      actorId: data.actorId ?? null,
+      source: data.source ?? "WEB",
+      metadata: data.metadata,
     },
   });
+}
+
+/** Retry serializable transactions that collide under concurrent warehouse use. */
+export async function withSerializableTransaction<T>(
+  operation: (tx: Prisma.TransactionClient) => Promise<T>,
+  attempts = 3
+): Promise<T> {
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await prisma.$transaction(operation, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      });
+    } catch (error) {
+      const retryable =
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2034";
+      if (!retryable || attempt === attempts) throw error;
+    }
+  }
+  throw new Error("Transaction retry limit exceeded");
 }
 
 /** Human-friendly label for an activity type (for UI display). */
@@ -91,6 +117,13 @@ export function activityLabel(type: ActivityType): string {
     RESERVATION_CANCELLED: "Reservation Cancelled",
     PART_PICKED_UP: "Picked Up",
     PART_RETURNED: "Returned",
+    PROJECT_CREATED: "Project Created",
+    PROJECT_UPDATED: "Project Updated",
+    PROJECT_DELETED: "Project Deleted",
+    INVENTORY_IMPORTED: "Inventory Imported",
+    INVENTORY_EXPORTED: "Inventory Exported",
+    USER_INVITED: "User Invited",
+    USER_ROLE_CHANGED: "User Access Updated",
   };
   return labels[type] ?? type;
 }

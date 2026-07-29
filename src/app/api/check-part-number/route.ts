@@ -1,8 +1,11 @@
 import { prisma } from "@/lib/db";
 import { computeAvailable } from "@/lib/inventory";
 import { NextRequest, NextResponse } from "next/server";
+import { authorize } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
+  const auth = await authorize();
+  if (auth.response) return auth.response;
   try {
     const searchParams = request.nextUrl.searchParams;
     const partNumber = searchParams.get("partNumber");
@@ -18,7 +21,9 @@ export async function GET(request: NextRequest) {
 
     // Primary check: exact part number.
     let part = partNumber
-      ? await prisma.part.findUnique({ where: { partNumber } })
+      ? await prisma.part.findFirst({
+          where: { partNumber: { equals: partNumber.trim(), mode: "insensitive" } },
+        })
       : null;
 
     let matchType: "partNumber" | "modelNumber" | null = part
@@ -28,7 +33,10 @@ export async function GET(request: NextRequest) {
     // Secondary check: manufacturer + model number.
     if (!part && manufacturer && modelNumber) {
       part = await prisma.part.findFirst({
-        where: { manufacturer, modelNumber },
+        where: {
+          manufacturer: { equals: manufacturer.trim(), mode: "insensitive" },
+          modelNumber: { equals: modelNumber.trim(), mode: "insensitive" },
+        },
       });
       if (part) matchType = "modelNumber";
     }

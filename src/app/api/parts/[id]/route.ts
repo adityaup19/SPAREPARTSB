@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { logActivity } from "@/lib/inventory";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { authorize } from "@/lib/auth";
 
 const updatePartSchema = z.object({
   name: z.string().min(1).optional(),
@@ -9,7 +10,6 @@ const updatePartSchema = z.object({
   manufacturer: z.string().min(1).optional(),
   modelNumber: z.string().optional().nullable(),
   serialNumber: z.string().optional().nullable(),
-  totalQuantity: z.number().int().min(0).optional(),
   location: z.string().min(1).optional(),
   aisle: z.string().optional().nullable(),
   shelf: z.string().optional().nullable(),
@@ -24,6 +24,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await authorize();
+  if (auth.response) return auth.response;
   try {
     const { id } = await params;
     const part = await prisma.part.findUnique({
@@ -60,6 +62,8 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await authorize(["ADMIN", "MANAGER"]);
+  if (auth.response) return auth.response;
   try {
     const { id } = await params;
     const body = await request.json();
@@ -71,19 +75,6 @@ export async function PUT(
 
     if (!existingPart) {
       return NextResponse.json({ error: "Part not found" }, { status: 404 });
-    }
-
-    // Prevent lowering total below what is already reserved.
-    if (
-      validatedData.totalQuantity !== undefined &&
-      validatedData.totalQuantity < existingPart.reservedQuantity
-    ) {
-      return NextResponse.json(
-        {
-          error: `Total quantity cannot be below reserved quantity (${existingPart.reservedQuantity})`,
-        },
-        { status: 400 }
-      );
     }
 
     // Check for duplicate part number if changing
@@ -118,6 +109,8 @@ export async function PUT(
       type: "PART_UPDATED",
       details: `Updated ${part.name}`,
       partId: part.id,
+      actorId: auth.user.id,
+      metadata: { fields: Object.keys(validatedData) },
     });
 
     return NextResponse.json(part);
@@ -140,6 +133,8 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await authorize(["ADMIN"]);
+  if (auth.response) return auth.response;
   try {
     const { id } = await params;
     const part = await prisma.part.findUnique({
@@ -150,13 +145,15 @@ export async function DELETE(
       return NextResponse.json({ error: "Part not found" }, { status: 404 });
     }
 
-    await prisma.part.delete({
-      where: { id },
-    });
-
-    await logActivity(prisma, {
-      type: "PART_DELETED",
-      details: `Deleted ${part.name} (${part.partNumber})`,
+    await prisma.$transaction(async (tx) => {
+      await logActivity(tx, {
+        type: "PART_DELETED",
+        details: `Deleted ${part.name} (${part.partNumber})`,
+        partId: part.id,
+        actorId: auth.user.id,
+        metadata: { partNumber: part.partNumber, totalQuantity: part.totalQuantity },
+      });
+      await tx.part.delete({ where: { id } });
     });
 
     return NextResponse.json({ success: true });

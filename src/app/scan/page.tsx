@@ -257,10 +257,23 @@ export default function ScanPage() {
     setSaving(true);
     setError("");
     try {
+      let imageUrl = form.imageUrl;
+      if (imageUrl?.startsWith("data:image/")) {
+        const blob = await fetch(imageUrl).then((response) => response.blob());
+        const upload = new FormData();
+        upload.append("file", blob, `part-label.${blob.type.split("/")[1] || "jpg"}`);
+        const uploadResponse = await fetch("/api/uploads/part-image", {
+          method: "POST",
+          body: upload,
+        });
+        const uploadBody = await uploadResponse.json();
+        if (!uploadResponse.ok) throw new Error(uploadBody.error || "Image upload failed");
+        imageUrl = uploadBody.url;
+      }
       const res = await fetch("/api/parts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, imageUrl }),
       });
       const data = await res.json();
       if (res.status === 409) {

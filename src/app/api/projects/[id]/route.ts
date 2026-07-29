@@ -1,17 +1,21 @@
 import { prisma } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { authorize } from "@/lib/auth";
+import { logActivity } from "@/lib/inventory";
 
 const updateProjectSchema = z.object({
   name: z.string().min(1).optional(),
   description: z.string().optional().nullable(),
-  status: z.string().optional(),
+  status: z.enum(["Active", "Planned", "On Hold", "Completed"]).optional(),
 });
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await authorize();
+  if (auth.response) return auth.response;
   try {
     const { id } = await params;
     const project = await prisma.project.findUnique({
@@ -44,6 +48,8 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await authorize(["ADMIN", "MANAGER"]);
+  if (auth.response) return auth.response;
   try {
     const { id } = await params;
     const body = await request.json();
@@ -52,6 +58,13 @@ export async function PUT(
     const project = await prisma.project.update({
       where: { id },
       data: validatedData,
+    });
+    await logActivity(prisma, {
+      type: "PROJECT_UPDATED",
+      actorId: auth.user.id,
+      projectId: project.id,
+      details: `Updated project ${project.name}`,
+      metadata: { fields: Object.keys(validatedData) },
     });
 
     return NextResponse.json(project);
@@ -74,6 +87,8 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await authorize(["ADMIN"]);
+  if (auth.response) return auth.response;
   try {
     const { id } = await params;
     const project = await prisma.project.findUnique({
@@ -84,8 +99,14 @@ export async function DELETE(
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    await prisma.project.delete({
-      where: { id },
+    await prisma.$transaction(async (tx) => {
+      await logActivity(tx, {
+        type: "PROJECT_DELETED",
+        actorId: auth.user.id,
+        projectId: project.id,
+        details: `Deleted project ${project.name}`,
+      });
+      await tx.project.delete({ where: { id } });
     });
 
     return NextResponse.json({ success: true });

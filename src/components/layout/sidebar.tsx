@@ -10,21 +10,38 @@ import {
   ScanLine,
   Menu,
   X,
+  ShieldCheck,
+  History,
+  LogOut,
+  FileUp,
 } from "lucide-react";
+import type { AppUser } from "@prisma/client";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
-const navigation = [
+type NavigationItem = {
+  name: string;
+  href: string;
+  icon: typeof Package;
+  managerOnly?: boolean;
+  adminOnly?: boolean;
+};
+
+const navigation: NavigationItem[] = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Scan a Part", href: "/scan", icon: ScanLine },
   { name: "Inventory", href: "/inventory", icon: Package },
   { name: "Reservations", href: "/reservations", icon: ClipboardList },
   { name: "Projects", href: "/projects", icon: FolderKanban },
   { name: "Add Part", href: "/parts/add", icon: PlusCircle },
+  { name: "Import / Export", href: "/inventory/import", icon: FileUp, managerOnly: true },
+  { name: "Audit History", href: "/audit", icon: History, managerOnly: true },
+  { name: "User Admin", href: "/admin/users", icon: ShieldCheck, adminOnly: true },
 ];
 
-export function Sidebar() {
+export function Sidebar({ user }: { user: AppUser }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -32,6 +49,9 @@ export function Sidebar() {
     <>
       {/* Mobile menu button */}
       <button
+        type="button"
+        aria-label={mobileOpen ? "Close navigation menu" : "Open navigation menu"}
+        aria-expanded={mobileOpen}
         className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-md border border-gray-200"
         onClick={() => setMobileOpen(!mobileOpen)}
       >
@@ -45,6 +65,9 @@ export function Sidebar() {
       {/* Mobile backdrop */}
       {mobileOpen && (
         <div
+          role="button"
+          tabIndex={0}
+          aria-label="Close navigation menu"
           className="lg:hidden fixed inset-0 bg-black/50 z-40"
           onClick={() => setMobileOpen(false)}
         />
@@ -72,7 +95,15 @@ export function Sidebar() {
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
-            {navigation.map((item) => {
+            {navigation
+              .filter((item) => !item.adminOnly || user.role === "ADMIN")
+              .filter(
+                (item) =>
+                  !item.managerOnly ||
+                  user.role === "ADMIN" ||
+                  user.role === "MANAGER"
+              )
+              .map((item) => {
               const isActive =
                 item.href === "/"
                   ? pathname === "/"
@@ -103,11 +134,28 @@ export function Sidebar() {
           </nav>
 
           {/* Footer */}
-          <div className="px-6 py-4 border-t border-gray-200">
-            <p className="text-xs text-gray-500">
-              Warehouse Inventory System
+          <div className="px-4 py-4 border-t border-gray-200">
+            <p className="truncate text-sm font-medium text-gray-900">
+              {user.displayName || user.email}
             </p>
-            <p className="text-xs text-gray-400 mt-1">v1.0.0</p>
+            <p className="truncate text-xs text-gray-500">{user.email}</p>
+            <div className="mt-2 flex items-center justify-between">
+              <span className="rounded bg-gray-100 px-2 py-1 text-[10px] font-semibold text-gray-600">
+                {user.role}
+              </span>
+              <button
+                type="button"
+                aria-label="Sign out"
+                title="Sign out"
+                onClick={async () => {
+                  await createSupabaseBrowserClient().auth.signOut();
+                  window.location.assign("/login");
+                }}
+                className="rounded p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
       </aside>

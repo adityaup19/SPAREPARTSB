@@ -23,6 +23,7 @@ import { ClipboardList, Trash2, PackageCheck, Truck, RotateCcw, Package } from "
 import Link from "next/link";
 import { getStatusColor, formatDate } from "@/lib/utils";
 import type { Reservation, Part, Project } from "@/types";
+import { useCurrentUser } from "@/components/auth-provider";
 
 interface ReservationWithDetails extends Reservation {
   part: Part;
@@ -47,6 +48,8 @@ const statusChangeOptions = [
 ];
 
 export default function ReservationsPage() {
+  const currentUser = useCurrentUser();
+  const canManage = currentUser.role === "ADMIN" || currentUser.role === "MANAGER";
   const [reservations, setReservations] = useState<ReservationWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("");
@@ -123,6 +126,7 @@ export default function ReservationsPage() {
 
   const renderQuickActions = (r: ReservationWithDetails) => (
     <div className="flex flex-wrap gap-1">
+      {!canManage ? <span className="text-xs text-gray-400">View only</span> : <>
       {r.status === "Reserved" && (
         <Button variant="ghost" size="sm" onClick={() => setStatus(r, "Ready for Pickup")} title="Mark Ready for Pickup">
           <PackageCheck className="w-4 h-4 text-indigo-500" />
@@ -146,6 +150,7 @@ export default function ReservationsPage() {
       <Button variant="ghost" size="sm" onClick={() => openStatusModal(r)} title="Change Status">
         Edit
       </Button>
+      </>}
     </div>
   );
 

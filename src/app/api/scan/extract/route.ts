@@ -5,15 +5,26 @@ import {
   OcrConfigError,
   OcrRequestError,
 } from "@/lib/ocr";
+import { authorize } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const bodySchema = z.object({
-  image: z.string().min(1, "An image is required"),
+  image: z
+    .string()
+    .min(1, "An image is required")
+    .max(7_000_000, "Image is too large")
+    .refine(
+      (value) => /^data:image\/(jpeg|png|webp);base64,/i.test(value),
+      "Only JPEG, PNG, and WebP images are supported"
+    ),
 });
 
 export async function POST(request: NextRequest) {
+  const auth = await authorize();
+  if (auth.response) return auth.response;
   let body: unknown;
   try {
     body = await request.json();
@@ -30,6 +41,19 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const day = new Date().toISOString().slice(0, 10);
+    const usage = await prisma.scanUsage.upsert({
+      where: { userId_day: { userId: auth.user.id, day } },
+      create: { userId: auth.user.id, day, count: 1 },
+      update: { count: { increment: 1 } },
+    });
+    const dailyLimit = Math.max(1, Number(process.env.OCR_DAILY_USER_LIMIT || 100));
+    if (usage.count > dailyLimit) {
+      return NextResponse.json(
+        { error: "Daily scan limit reached. Contact an administrator." },
+        { status: 429 }
+      );
+    }
     const data = await extractPartFromImage(parsed.data.image);
     return NextResponse.json({ data });
   } catch (error) {

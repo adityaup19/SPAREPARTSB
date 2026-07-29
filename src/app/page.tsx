@@ -13,43 +13,48 @@ import {
   ClipboardList,
   PlusCircle,
 } from "lucide-react";
-import { formatDateTime, isWarrantyExpiringSoon } from "@/lib/utils";
+import { formatDateTime } from "@/lib/utils";
 import { activityLabel } from "@/lib/inventory";
-import { ResetDemoButton } from "@/components/reset-demo-button";
 import Link from "next/link";
+import type { Part } from "@prisma/client";
 
 // Render on each request instead of at build time — the dashboard reads the
 // database, which isn't available/seeded during the Vercel build step.
 export const dynamic = "force-dynamic";
 
 async function getDashboardData() {
-  const [parts, activities] = await Promise.all([
-    prisma.part.findMany(),
+  const now = new Date();
+  const soon = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+  const [totalUniqueParts, totals, activities, warrantiesExpiringSoon, warrantyAlerts, lowStockParts] = await Promise.all([
+    prisma.part.count(),
+    prisma.part.aggregate({
+      _sum: { totalQuantity: true, reservedQuantity: true },
+    }),
     prisma.activity.findMany({
-      include: { part: true, project: true },
+      include: { part: true, project: true, actor: true },
       orderBy: { createdAt: "desc" },
       take: 10,
     }),
+    prisma.part.count({
+      where: { warrantyExpiration: { gt: now, lte: soon } },
+    }),
+    prisma.part.findMany({
+      where: { warrantyExpiration: { gt: now, lte: soon } },
+      orderBy: { warrantyExpiration: "asc" },
+      take: 5,
+    }),
+    prisma.$queryRaw<Part[]>`
+      SELECT * FROM "Part"
+      WHERE "totalQuantity" > 0
+        AND ("totalQuantity" - "reservedQuantity") BETWEEN 0 AND 5
+      ORDER BY "updatedAt" DESC
+      LIMIT 5
+    `,
   ]);
 
-  const totalUniqueParts = parts.length;
-  const totalUnits = parts.reduce((sum, p) => sum + p.totalQuantity, 0);
-  const reservedUnits = parts.reduce((sum, p) => sum + p.reservedQuantity, 0);
+  const totalUnits = totals._sum.totalQuantity ?? 0;
+  const reservedUnits = totals._sum.reservedQuantity ?? 0;
   const availableUnits = totalUnits - reservedUnits;
-  const warrantiesExpiringSoon = parts.filter((p) =>
-    isWarrantyExpiringSoon(p.warrantyExpiration, 90)
-  ).length;
-
-  const warrantyAlerts = parts
-    .filter((p) => isWarrantyExpiringSoon(p.warrantyExpiration, 90))
-    .slice(0, 5);
-
-  const lowStockParts = parts
-    .filter((p) => {
-      const available = p.totalQuantity - p.reservedQuantity;
-      return available <= 5 && p.totalQuantity > 0;
-    })
-    .slice(0, 5);
 
   return {
     metrics: {
@@ -73,7 +78,6 @@ export default async function DashboardPage() {
       <PageHeader
         title="Dashboard"
         description="Overview of your warehouse inventory"
-        actions={<ResetDemoButton />}
       />
 
       {/* Primary action: Scan a Part (prioritized on mobile via ordering) */}
@@ -161,6 +165,9 @@ export default async function DashboardPage() {
                         </p>
                         <p className="text-sm text-gray-500 truncate">
                           {activity.details}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {activity.actor?.displayName || activity.actor?.email || "System"}
                         </p>
                       </div>
                       <p className="text-xs text-gray-400 whitespace-nowrap">

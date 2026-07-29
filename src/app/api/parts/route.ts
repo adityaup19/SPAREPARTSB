@@ -2,12 +2,14 @@ import { prisma } from "@/lib/db";
 import { logActivity } from "@/lib/inventory";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { authorize } from "@/lib/auth";
+import type { Prisma } from "@prisma/client";
 
 const partSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  partNumber: z.string().min(1, "Part number is required"),
-  manufacturer: z.string().min(1, "Manufacturer is required"),
-  modelNumber: z.string().optional().nullable(),
+  name: z.string().trim().min(1, "Name is required"),
+  partNumber: z.string().trim().min(1, "Part number is required"),
+  manufacturer: z.string().trim().min(1, "Manufacturer is required"),
+  modelNumber: z.string().trim().optional().nullable(),
   serialNumber: z.string().optional().nullable(),
   quantity: z.number().int().min(0),
   location: z.string().min(1, "Location is required"),
@@ -15,20 +17,24 @@ const partSchema = z.object({
   shelf: z.string().optional().nullable(),
   bin: z.string().optional().nullable(),
   warrantyExpiration: z.string().optional().nullable(),
-  condition: z.string().default("New"),
+  condition: z.enum(["New", "Used", "Refurbished", "Damaged"]).default("New"),
   notes: z.string().optional().nullable(),
   imageUrl: z.string().optional().nullable(),
 });
 
 export async function GET(request: NextRequest) {
+  const auth = await authorize();
+  if (auth.response) return auth.response;
   try {
     const searchParams = request.nextUrl.searchParams;
     const search = searchParams.get("search") || "";
     const condition = searchParams.get("condition") || "";
     const availability = searchParams.get("availability") || "";
     const warranty = searchParams.get("warranty") || "";
+    const page = Math.max(1, Number(searchParams.get("page") || 1));
+    const pageSize = Math.min(100, Math.max(10, Number(searchParams.get("pageSize") || 50)));
 
-    const where: Record<string, unknown> = {};
+    const where: Prisma.PartWhereInput = {};
 
     if (search) {
       const mode = "insensitive" as const;
@@ -49,42 +55,42 @@ export async function GET(request: NextRequest) {
       where.condition = condition;
     }
 
+    if (availability === "available") {
+      where.totalQuantity = { gt: prisma.part.fields.reservedQuantity };
+    } else if (availability === "reserved") {
+      where.reservedQuantity = { gt: 0 };
+    } else if (availability === "out") {
+      where.totalQuantity = { lte: prisma.part.fields.reservedQuantity };
+    }
+
+    const now = new Date();
+    if (warranty === "expiring") {
+      where.warrantyExpiration = {
+        gt: now,
+        lte: new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000),
+      };
+    } else if (warranty === "expired") {
+      where.warrantyExpiration = { lte: now };
+    }
+
     let parts = await prisma.part.findMany({
       where,
       orderBy: { updatedAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      omit: { imageUrl: true, notes: true },
     });
-
-    // Availability filters computed in-memory (available = total - reserved).
-    if (availability === "available") {
-      parts = parts.filter((p) => p.totalQuantity - p.reservedQuantity > 0);
-    } else if (availability === "reserved") {
-      parts = parts.filter((p) => p.reservedQuantity > 0);
-    } else if (availability === "low") {
+    if (availability === "low") {
       parts = parts.filter((p) => {
         const available = p.totalQuantity - p.reservedQuantity;
         return available > 0 && available <= 5;
       });
-    } else if (availability === "out") {
-      parts = parts.filter((p) => p.totalQuantity - p.reservedQuantity <= 0);
     }
-
-    if (warranty === "expiring") {
-      const now = Date.now();
-      const soon = now + 90 * 24 * 60 * 60 * 1000;
-      parts = parts.filter((p) => {
-        if (!p.warrantyExpiration) return false;
-        const t = new Date(p.warrantyExpiration).getTime();
-        return t > now && t <= soon;
-      });
-    } else if (warranty === "expired") {
-      const now = Date.now();
-      parts = parts.filter((p) => {
-        if (!p.warrantyExpiration) return false;
-        return new Date(p.warrantyExpiration).getTime() <= now;
-      });
-    }
-
-    return NextResponse.json(parts);
+    const total = await prisma.part.count({ where });
+    return NextResponse.json({
+      items: parts,
+      pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
+    });
   } catch (error) {
     console.error("Error fetching parts:", error);
     return NextResponse.json(
@@ -95,13 +101,38 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await authorize();
+  if (auth.response) return auth.response;
   try {
     const body = await request.json();
     const validatedData = partSchema.parse(body);
 
     // Duplicate detection: exact part number.
-    const existingPart = await prisma.part.findUnique({
-      where: { partNumber: validatedData.partNumber },
+    const existingPart = await prisma.part.findFirst({
+      where: {
+        OR: [
+          {
+            partNumber: {
+              equals: validatedData.partNumber,
+              mode: "insensitive",
+            },
+          },
+          ...(validatedData.modelNumber
+            ? [
+                {
+                  manufacturer: {
+                    equals: validatedData.manufacturer,
+                    mode: "insensitive" as const,
+                  },
+                  modelNumber: {
+                    equals: validatedData.modelNumber,
+                    mode: "insensitive" as const,
+                  },
+                },
+              ]
+            : []),
+        ],
+      },
     });
 
     if (existingPart) {
@@ -131,6 +162,9 @@ export async function POST(request: NextRequest) {
       type: "PART_CREATED",
       details: `Added ${quantity} units of ${validatedData.name}`,
       partId: part.id,
+      actorId: auth.user.id,
+      source: "WEB",
+      metadata: { quantity },
     });
 
     return NextResponse.json(part, { status: 201 });

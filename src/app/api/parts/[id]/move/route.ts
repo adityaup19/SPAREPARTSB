@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { formatLocation, logActivity } from "@/lib/inventory";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { authorize } from "@/lib/auth";
 
 const moveSchema = z.object({
   location: z.string().min(1, "Location is required"),
@@ -14,6 +15,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await authorize();
+  if (auth.response) return auth.response;
   try {
     const { id } = await params;
     const body = await request.json();
@@ -39,6 +42,11 @@ export async function POST(
       type: "PART_MOVED",
       details: `Moved ${part.name} to ${formatLocation(updatedPart)}`,
       partId: part.id,
+      actorId: auth.user.id,
+      metadata: {
+        from: formatLocation(part),
+        to: formatLocation(updatedPart),
+      },
     });
 
     return NextResponse.json(updatedPart);

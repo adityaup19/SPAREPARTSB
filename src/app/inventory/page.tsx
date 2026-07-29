@@ -53,6 +53,10 @@ export default function InventoryPage() {
   const [condition, setCondition] = useState("");
   const [availability, setAvailability] = useState("");
   const [warranty, setWarranty] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [error, setError] = useState("");
 
   const fetchParts = useCallback(async () => {
     setLoading(true);
@@ -62,16 +66,25 @@ export default function InventoryPage() {
       if (condition) params.set("condition", condition);
       if (availability) params.set("availability", availability);
       if (warranty) params.set("warranty", warranty);
+      params.set("page", String(page));
+      params.set("pageSize", "50");
 
       const response = await fetch(`/api/parts?${params}`);
       const data = await response.json();
-      setParts(data);
+      if (!response.ok) throw new Error(data.error || "Failed to load inventory");
+      setParts(data.items);
+      setTotalPages(data.pagination.totalPages);
+      setTotal(data.pagination.total);
+      setError("");
     } catch (error) {
       console.error("Error fetching parts:", error);
+      setError(error instanceof Error ? error.message : "Failed to load inventory");
     } finally {
       setLoading(false);
     }
-  }, [search, condition, availability, warranty]);
+  }, [search, condition, availability, warranty, page]);
+
+  useEffect(() => setPage(1), [search, condition, availability, warranty]);
 
   useEffect(() => {
     const timer = setTimeout(() => fetchParts(), 300);
@@ -126,6 +139,11 @@ export default function InventoryPage() {
       </Card>
 
       {/* Results */}
+      {error && (
+        <div role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {error} <button type="button" onClick={fetchParts} className="font-semibold underline">Retry</button>
+        </div>
+      )}
       {loading ? (
         <Card>
           <CardContent className="p-6">
@@ -281,6 +299,18 @@ export default function InventoryPage() {
                 </Link>
               );
             })}
+          </div>
+          <div className="mt-4 flex items-center justify-between rounded-lg border bg-white px-4 py-3 text-sm">
+            <span className="text-gray-500">{total.toLocaleString()} parts</span>
+            <div className="flex items-center gap-3">
+              <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>
+                Previous
+              </Button>
+              <span>Page {page} of {Math.max(1, totalPages)}</span>
+              <Button variant="secondary" size="sm" disabled={page >= totalPages} onClick={() => setPage((value) => value + 1)}>
+                Next
+              </Button>
+            </div>
           </div>
         </>
       )}

@@ -24,6 +24,7 @@ import {
 import { FolderKanban, Plus, Edit, Trash2, Eye } from "lucide-react";
 import { getStatusColor, formatDate } from "@/lib/utils";
 import type { Project, Reservation, Part } from "@/types";
+import { useCurrentUser } from "@/components/auth-provider";
 
 interface ProjectWithReservations extends Project {
   reservations: (Reservation & { part: Part })[];
@@ -44,6 +45,8 @@ const initialFormData = {
 };
 
 export default function ProjectsPage() {
+  const currentUser = useCurrentUser();
+  const canManage = currentUser.role === "ADMIN" || currentUser.role === "MANAGER";
   const [projects, setProjects] = useState<ProjectWithReservations[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -157,12 +160,12 @@ export default function ProjectsPage() {
       <PageHeader
         title="Projects"
         description="Manage projects and their part reservations"
-        actions={
+        actions={canManage ? (
           <Button onClick={handleOpenCreate}>
             <Plus className="w-4 h-4 mr-2" />
             New Project
           </Button>
-        }
+        ) : undefined}
       />
 
       {error && <Alert variant="error" className="mb-4">{error}</Alert>}
@@ -179,14 +182,16 @@ export default function ProjectsPage() {
               icon={FolderKanban}
               title="No projects yet"
               description="Create your first project to start reserving parts"
-              action={
+              action={canManage ? (
                 <Button onClick={handleOpenCreate}>
                   <Plus className="w-4 h-4 mr-2" />
                   New Project
                 </Button>
-              }
+              ) : undefined}
             />
           ) : (
+            <>
+            <div className="hidden md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -230,26 +235,48 @@ export default function ProjectsPage() {
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
-                        <Button
+                        {canManage && <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleOpenEdit(project)}
                         >
                           <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
+                        </Button>}
+                        {currentUser.role === "ADMIN" && <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleDelete(project.id)}
                         >
                           <Trash2 className="w-4 h-4 text-red-500" />
-                        </Button>
+                        </Button>}
                       </div>
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
+            </div>
+            <div className="space-y-3 p-3 md:hidden">
+              {projects.map((project) => (
+                <div key={project.id} className="rounded-lg border border-gray-200 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-medium text-gray-900">{project.name}</p>
+                      <p className="mt-1 text-xs text-gray-500">{project.description}</p>
+                    </div>
+                    <Badge className={getStatusColor(project.status)}>{project.status}</Badge>
+                  </div>
+                  <p className="mt-3 text-sm text-gray-600">
+                    {project._count.reservations} reservations · {getTotalReserved(project)} units
+                  </p>
+                  <div className="mt-3 flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => handleOpenDetail(project)}>View</Button>
+                    {canManage && <Button size="sm" variant="outline" onClick={() => handleOpenEdit(project)}>Edit</Button>}
+                  </div>
+                </div>
+              ))}
+            </div>
+            </>
           )}
         </CardContent>
       </Card>

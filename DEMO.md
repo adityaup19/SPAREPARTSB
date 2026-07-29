@@ -16,8 +16,8 @@ Takes about 5 minutes. Just read this and follow along.
 
 ## Before you start
 
-1. On the **Dashboard**, click **"Reset demo data"** (top right). This makes sure
-   the numbers are clean for the demo.
+1. Sign in with the Manager account provided by the warehouse administrator.
+   The site is invitation-only and every change is attributed to a user.
 2. Open this link once and **save the image to your laptop** — you'll upload it
    in Step 3:
    https://sparepartsb.vercel.app/labels/m9208-gga-3-label.png
@@ -68,8 +68,8 @@ Takes about 5 minutes. Just read this and follow along.
 - **Scan is slow?** Click **"Enter details manually"** on the Scan page and type
   the part number **M9208-GGA-3** — the "Matching part found" step still works
   the same way.
-- **Numbers look off from practicing?** Click **"Reset demo data"** on the
-  Dashboard and start fresh.
+- **Need a clean practice run?** Ask an administrator to use a separate staging
+  environment. Production inventory cannot be reset from the web app.
 
 ---
 

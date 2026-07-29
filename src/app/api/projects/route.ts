@@ -1,14 +1,18 @@
 import { prisma } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { authorize } from "@/lib/auth";
+import { logActivity } from "@/lib/inventory";
 
 const projectSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().optional().nullable(),
-  status: z.string().default("Active"),
+  status: z.enum(["Active", "Planned", "On Hold", "Completed"]).default("Active"),
 });
 
 export async function GET() {
+  const auth = await authorize();
+  if (auth.response) return auth.response;
   try {
     const projects = await prisma.project.findMany({
       include: {
@@ -35,12 +39,20 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await authorize(["ADMIN", "MANAGER"]);
+  if (auth.response) return auth.response;
   try {
     const body = await request.json();
     const validatedData = projectSchema.parse(body);
 
     const project = await prisma.project.create({
       data: validatedData,
+    });
+    await logActivity(prisma, {
+      type: "PROJECT_CREATED",
+      actorId: auth.user.id,
+      projectId: project.id,
+      details: `Created project ${project.name}`,
     });
 
     return NextResponse.json(project, { status: 201 });

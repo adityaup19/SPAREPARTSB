@@ -3,7 +3,9 @@ import {
   computeAvailable,
   logActivity,
   recomputeReservedQuantity,
+  withSerializableTransaction,
 } from "@/lib/inventory";
+import { authorize } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -15,6 +17,8 @@ const reservationSchema = z.object({
 });
 
 export async function GET() {
+  const auth = await authorize();
+  if (auth.response) return auth.response;
   try {
     const reservations = await prisma.reservation.findMany({
       include: {
@@ -35,11 +39,13 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await authorize(["ADMIN", "MANAGER"]);
+  if (auth.response) return auth.response;
   try {
     const body = await request.json();
     const validatedData = reservationSchema.parse(body);
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await withSerializableTransaction(async (tx) => {
       const part = await tx.part.findUnique({
         where: { id: validatedData.partId },
       });
@@ -85,6 +91,8 @@ export async function POST(request: NextRequest) {
         details: `Reserved ${validatedData.quantity} ${part.name} for ${project.name}`,
         partId: part.id,
         projectId: project.id,
+        actorId: auth.user.id,
+        metadata: { quantity: validatedData.quantity },
       });
 
       return { reservation };
