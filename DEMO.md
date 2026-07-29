@@ -27,9 +27,9 @@ Takes about 5 minutes. Just read this and follow along.
 ## The 5 steps
 
 ### Step 1 — Show the warehouse (Dashboard)
-- Point to the top numbers: **15 Unique Parts, 295 Total Units.**
-- Say: *"This is everything we own, live and up to date — not a spreadsheet from
-  last month."*
+- Point to the top numbers: **316 Unique Parts, 4,213 Total Units.**
+- Say: *"This is our actual Johnson Controls warehouse — every line item from the
+  inventory export, live and up to date, not a spreadsheet from last month."*
 
 ### Step 2 — Find a part (Inventory → Search)
 - Click **Inventory**, type **M9208** in the search box.
@@ -58,8 +58,8 @@ Takes about 5 minutes. Just read this and follow along.
   already have on the shelf. That's the money saved, right there."*
 
 ### Closing line
-> "Today this is sample data. Point it at your real inventory and it does this
-> across the whole company — one shared record that's always current."
+> "This is loaded with our real warehouse export — 316 parts across the whole
+> rack layout. One shared record that's always current, for the whole company."
 
 ---
 

@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 /**
- * Resets the demo to its pristine state (15 parts / 295 units, hero part at
+ * Resets the demo to its pristine state (316 parts / 4,213 units, hero part at
  * 12/3/9). Safe to expose for a demo: the only thing it can ever do is restore
  * the intended sample data. Called by the in-app "Reset demo data" button.
  */

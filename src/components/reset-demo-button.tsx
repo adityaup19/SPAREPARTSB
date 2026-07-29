@@ -6,7 +6,7 @@ import { RefreshCw } from "lucide-react";
 
 /**
  * One-click "Reset demo data" control for the deployed demo. Lets a presenter
- * restore the pristine sample data (15 parts / 295 units) between practice runs
+ * restore the pristine sample data (316 parts / 4,213 units) between practice runs
  * without any terminal or code access.
  */
 export function ResetDemoButton() {
@@ -17,7 +17,7 @@ export function ResetDemoButton() {
   const handleReset = async () => {
     if (busy) return;
     const ok = window.confirm(
-      "Reset the demo to its original state?\n\nThis restores 15 parts / 295 units and clears any changes made during the demo."
+      "Reset the demo to its original state?\n\nThis restores 316 parts / 4,213 units and clears any changes made during the demo."
     );
     if (!ok) return;
 
@@ -42,7 +42,7 @@ export function ResetDemoButton() {
       onClick={handleReset}
       disabled={busy}
       className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-600 shadow-sm hover:bg-gray-50 hover:text-gray-900 disabled:opacity-60"
-      title="Restore the original demo data (15 parts / 295 units)"
+      title="Restore the original demo data (316 parts / 4,213 units)"
     >
       <RefreshCw className={"w-4 h-4 " + (busy ? "animate-spin" : "")} />
       {busy ? "Resetting..." : done ? "Demo reset" : "Reset demo data"}

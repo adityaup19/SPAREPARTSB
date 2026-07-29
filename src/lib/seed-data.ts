@@ -1,13 +1,17 @@
 import type { PrismaClient } from "@prisma/client";
+import jcInventoryRaw from "../data/jc-inventory.json";
 
 /**
  * Demo seed data + a reusable `seedDatabase` function.
  *
- * This is imported by BOTH:
+ * The dataset is the REAL Johnson Controls warehouse export (cleaned and
+ * de-duplicated into src/data/jc-inventory.json) PLUS the M9208-GGA-3 "hero"
+ * part that the Scan-a-Part / duplicate-detection demo relies on.
+ *
+ * Imported by BOTH:
  *  - prisma/seed.ts (the `npm run db:seed` CLI script), and
  *  - src/app/api/demo/reset/route.ts (the in-app "Reset demo data" button),
- * so the deployed demo can be reset to a pristine state from the browser with
- * no terminal access.
+ * so the deployed demo can be reset to a pristine state from the browser.
  */
 
 const ACTIVE_STATUSES = ["Reserved", "Ready for Pickup"];
@@ -28,6 +32,23 @@ type Category =
   | "drive"
   | "gearbox";
 
+interface JcPart {
+  name: string;
+  partNumber: string;
+  manufacturer: string;
+  modelNumber: string | null;
+  totalQuantity: number;
+  location: string;
+  aisle: string | null;
+  shelf: string | null;
+  bin: string | null;
+  condition: string;
+  notes: string | null;
+  category: Category;
+}
+
+const jcInventory = jcInventoryRaw as unknown as JcPart[];
+
 const CATEGORY_STYLE: Record<Category, { from: string; to: string; glyph: string }> = {
   actuator: { from: "#1d4ed8", to: "#0ea5e9", glyph: `<rect x="150" y="95" width="100" height="60" rx="8" fill="#fff"/><rect x="192" y="70" width="16" height="30" fill="#fff"/><circle cx="200" cy="125" r="14" fill="#1d4ed8"/>` },
   bearing: { from: "#334155", to: "#64748b", glyph: `<circle cx="200" cy="125" r="52" fill="none" stroke="#fff" stroke-width="10"/><circle cx="200" cy="125" r="22" fill="none" stroke="#fff" stroke-width="10"/>` },
@@ -45,15 +66,19 @@ const CATEGORY_STYLE: Record<Category, { from: string; to: string; glyph: string
   gearbox: { from: "#475569", to: "#94a3b8", glyph: `<circle cx="200" cy="125" r="30" fill="none" stroke="#fff" stroke-width="10"/><rect x="194" y="82" width="12" height="16" fill="#fff"/><rect x="194" y="152" width="12" height="16" fill="#fff"/><rect x="240" y="119" width="16" height="12" fill="#fff"/><rect x="144" y="119" width="16" height="12" fill="#fff"/>` },
 };
 
+function esc(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 function partImage(category: Category, partNumber: string, manufacturer: string): string {
-  const { from, to, glyph } = CATEGORY_STYLE[category];
+  const { from, to, glyph } = CATEGORY_STYLE[category] ?? CATEGORY_STYLE.controller;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">
 <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${from}"/><stop offset="1" stop-color="${to}"/></linearGradient></defs>
 <rect width="400" height="300" fill="url(#g)"/>
 <rect x="16" y="16" width="368" height="268" rx="14" fill="none" stroke="#ffffff" stroke-opacity="0.35" stroke-width="2"/>
 ${glyph}
-<text x="200" y="210" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="700" fill="#ffffff" text-anchor="middle">${partNumber}</text>
-<text x="200" y="242" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#ffffff" fill-opacity="0.85" text-anchor="middle">${manufacturer}</text>
+<text x="200" y="210" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="700" fill="#ffffff" text-anchor="middle">${esc(partNumber)}</text>
+<text x="200" y="242" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#ffffff" fill-opacity="0.85" text-anchor="middle">${esc(manufacturer)}</text>
 </svg>`;
   return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
@@ -66,10 +91,28 @@ export interface SeedResult {
   activities: number;
 }
 
+// The hero part the Scan-a-Part demo depends on (not in the JC export).
+const HERO_PART_NUMBER = "M9208-GGA-3";
+
+// Demo reservations. Keyed by part number so they attach to real records.
+// The hero reservation of 3 is what makes it read "12 total / 3 reserved / 9 available".
+const RESERVATION_PLAN: {
+  partNumber: string;
+  projectIndex: number;
+  quantity: number;
+  status: string;
+  notes: string;
+}[] = [
+  { partNumber: HERO_PART_NUMBER, projectIndex: 0, quantity: 3, status: "Reserved", notes: "Damper actuators for rooftop unit RTU-2" },
+  { partNumber: "0743276", projectIndex: 1, quantity: 5, status: "Reserved", notes: "MC TrueAlert strobes for line A signaling" },
+  { partNumber: "0743260", projectIndex: 3, quantity: 2, status: "Reserved", notes: "Ceiling S/V units for Section C" },
+  { partNumber: "07431057", projectIndex: 2, quantity: 1, status: "Ready for Pickup", notes: "Staged for pump station room signaling" },
+];
+
 /**
  * Wipe and repopulate the database with the pristine demo dataset:
- * 15 unique parts, 295 total units, incl. the Johnson Controls M9208-GGA-3
- * hero part (12 total / 3 reserved / 9 available).
+ * the real Johnson Controls inventory (315 parts) plus the M9208-GGA-3 hero
+ * part (12 total / 3 reserved / 9 available).
  */
 export async function seedDatabase(prisma: PrismaClient): Promise<SeedResult> {
   // Clear existing data
@@ -80,82 +123,94 @@ export async function seedDatabase(prisma: PrismaClient): Promise<SeedResult> {
 
   const projects = await Promise.all([
     prisma.project.create({ data: { name: "HVAC System Upgrade", description: "Upgrading the main building HVAC system", status: "Active" } }),
-    prisma.project.create({ data: { name: "Assembly Line Maintenance", description: "Quarterly maintenance for production line A", status: "Active" } }),
+    prisma.project.create({ data: { name: "Fire Alarm Panel Retrofit", description: "Replacing legacy 4100 panels across the campus", status: "Active" } }),
     prisma.project.create({ data: { name: "Emergency Pump Repair", description: "Critical repair for cooling pump station", status: "Active" } }),
-    prisma.project.create({ data: { name: "Electrical Panel Replacement", description: "Replacing outdated electrical panels in Section C", status: "Planned" } }),
-    prisma.project.create({ data: { name: "Conveyor Belt Overhaul", description: "Complete overhaul of warehouse conveyor system", status: "Completed" } }),
+    prisma.project.create({ data: { name: "Section C Notification Upgrade", description: "New strobes and speakers for Section C", status: "Planned" } }),
+    prisma.project.create({ data: { name: "Warehouse Recount 2026", description: "Full physical inventory reconciliation", status: "Completed" } }),
   ]);
 
-  const parts = await Promise.all([
-    prisma.part.create({
+  // Bulk-insert the real Johnson Controls inventory.
+  const jcData = jcInventory.map((p) => ({
+    name: p.name,
+    partNumber: p.partNumber,
+    manufacturer: p.manufacturer,
+    modelNumber: p.modelNumber,
+    totalQuantity: p.totalQuantity,
+    reservedQuantity: 0,
+    location: p.location,
+    aisle: p.aisle,
+    shelf: p.shelf,
+    bin: p.bin,
+    condition: p.condition,
+    notes: p.notes,
+    imageUrl: partImage(p.category, p.partNumber, p.manufacturer),
+  }));
+
+  // Hero part for the Scan-a-Part / duplicate-detection demo.
+  const heroData = {
+    name: "M9208-GGA-3 Actuator",
+    partNumber: HERO_PART_NUMBER,
+    manufacturer: "Johnson Controls",
+    modelNumber: "M9208-GGA-3",
+    serialNumber: "JC24-0098821",
+    totalQuantity: 12,
+    reservedQuantity: 0,
+    location: "Warehouse A",
+    aisle: "3",
+    shelf: "B",
+    bin: "12",
+    warrantyExpiration: new Date("2027-09-30"),
+    condition: "New",
+    notes: "Non-spring-return electric actuator, 24 VAC, 200 lb-in torque",
+    imageUrl: partImage("actuator", HERO_PART_NUMBER, "Johnson Controls"),
+  };
+
+  await prisma.part.createMany({ data: [heroData, ...jcData], skipDuplicates: true });
+
+  const totalParts = await prisma.part.count();
+  const unitsAgg = await prisma.part.aggregate({ _sum: { totalQuantity: true } });
+  const units = unitsAgg._sum.totalQuantity ?? 0;
+
+  // Create the demo reservations against real records.
+  const reservedByPartId = new Map<string, number>();
+  let reservationCount = 0;
+  for (const plan of RESERVATION_PLAN) {
+    const part = await prisma.part.findUnique({ where: { partNumber: plan.partNumber } });
+    if (!part || part.totalQuantity < plan.quantity) continue;
+    await prisma.reservation.create({
       data: {
-        name: "M9208-GGA-3 Actuator",
-        partNumber: "M9208-GGA-3",
-        manufacturer: "Johnson Controls",
-        modelNumber: "M9208-GGA-3",
-        serialNumber: "JC24-0098821",
-        totalQuantity: 12,
-        location: "Warehouse A",
-        aisle: "3",
-        shelf: "B",
-        bin: "12",
-        warrantyExpiration: new Date("2027-09-30"),
-        condition: "New",
-        notes: "Non-spring-return electric actuator, 24 VAC, 200 lb-in torque",
-        imageUrl: partImage("actuator", "M9208-GGA-3", "Johnson Controls"),
+        partId: part.id,
+        projectId: projects[plan.projectIndex].id,
+        quantity: plan.quantity,
+        status: plan.status,
+        notes: plan.notes,
       },
-    }),
-    prisma.part.create({ data: { name: "Industrial Ball Bearing", partNumber: "SKF-6205-2RS", manufacturer: "SKF", modelNumber: "6205-2RS1", serialNumber: "SKF2024001234", totalQuantity: 48, location: "Warehouse A", aisle: "A", shelf: "12", bin: "3", warrantyExpiration: new Date("2026-12-31"), condition: "New", notes: "Deep groove ball bearing, sealed", imageUrl: partImage("bearing", "SKF-6205-2RS", "SKF") } }),
-    prisma.part.create({ data: { name: "Hydraulic Pump Motor", partNumber: "PARKER-PGP505", manufacturer: "Parker Hannifin", modelNumber: "PGP505A0080", serialNumber: "PH2024567890", totalQuantity: 5, location: "Warehouse B", aisle: "B", shelf: "05", bin: "1", warrantyExpiration: new Date("2027-06-15"), condition: "New", notes: "5HP, 3-phase motor for hydraulic systems", imageUrl: partImage("motor", "PARKER-PGP505", "Parker Hannifin") } }),
-    prisma.part.create({ data: { name: "Pneumatic Cylinder", partNumber: "SMC-CQ2B32-50D", manufacturer: "SMC Corporation", modelNumber: "CQ2B32-50DZ", serialNumber: "SMC2024112233", totalQuantity: 15, location: "Warehouse A", aisle: "A", shelf: "08", bin: "2", warrantyExpiration: new Date("2026-09-30"), condition: "New", notes: "Compact cylinder, 32mm bore, 50mm stroke", imageUrl: partImage("cylinder", "SMC-CQ2B32-50D", "SMC Corporation") } }),
-    prisma.part.create({ data: { name: "PLC Controller Module", partNumber: "SIEMENS-6ES7214", manufacturer: "Siemens", modelNumber: "6ES7214-1AG40-0XB0", serialNumber: "SIE2024998877", totalQuantity: 3, location: "Warehouse C", aisle: "C", shelf: "01", bin: "1", warrantyExpiration: new Date("2028-03-20"), condition: "New", notes: "SIMATIC S7-1200 CPU module", imageUrl: partImage("controller", "SIEMENS-6ES7214", "Siemens") } }),
-    prisma.part.create({ data: { name: "V-Belt Drive", partNumber: "GATES-8V1400", manufacturer: "Gates Corporation", modelNumber: "8V1400", serialNumber: null, totalQuantity: 30, location: "Warehouse A", aisle: "A", shelf: "15", bin: "4", warrantyExpiration: new Date("2026-08-10"), condition: "New", notes: "Industrial V-belt, 140 inch length", imageUrl: partImage("belt", "GATES-8V1400", "Gates Corporation") } }),
-    prisma.part.create({ data: { name: "Contactor Relay", partNumber: "ABB-AF09-30-10", manufacturer: "ABB", modelNumber: "AF09-30-10-13", serialNumber: "ABB2024445566", totalQuantity: 15, location: "Warehouse C", aisle: "C", shelf: "03", bin: "2", warrantyExpiration: new Date("2027-01-15"), condition: "New", notes: "3-pole contactor, 9A, 100-250V AC/DC", imageUrl: partImage("relay", "ABB-AF09-30-10", "ABB") } }),
-    prisma.part.create({ data: { name: "Pressure Transducer", partNumber: "HONEYWELL-PX3AN2", manufacturer: "Honeywell", modelNumber: "PX3AN2BS100PSAAX", serialNumber: "HW2024778899", totalQuantity: 8, location: "Warehouse B", aisle: "B", shelf: "02", bin: "3", warrantyExpiration: new Date("2027-04-30"), condition: "New", notes: "0-100 PSI, 4-20mA output", imageUrl: partImage("sensor", "HONEYWELL-PX3AN2", "Honeywell") } }),
-    prisma.part.create({ data: { name: "Servo Motor", partNumber: "FANUC-A06B-0227", manufacturer: "FANUC", modelNumber: "A06B-0227-B100", serialNumber: "FAN2024334455", totalQuantity: 2, location: "Warehouse C", aisle: "C", shelf: "02", bin: "1", warrantyExpiration: new Date("2028-01-10"), condition: "New", notes: "AC servo motor, 2.5kW, high precision", imageUrl: partImage("motor", "FANUC-A06B-0227", "FANUC") } }),
-    prisma.part.create({ data: { name: "Heat Exchanger Gasket", partNumber: "ALFA-LAVAL-M10B", manufacturer: "Alfa Laval", modelNumber: "M10-BFG", serialNumber: null, totalQuantity: 97, location: "Warehouse A", aisle: "A", shelf: "20", bin: "1", warrantyExpiration: new Date("2026-06-20"), condition: "New", notes: "NBR gasket for M10 heat exchanger", imageUrl: partImage("gasket", "ALFA-LAVAL-M10B", "Alfa Laval") } }),
-    prisma.part.create({ data: { name: "Industrial Filter Element", partNumber: "DONALDSON-P551000", manufacturer: "Donaldson", modelNumber: "P551000", serialNumber: null, totalQuantity: 25, location: "Warehouse A", aisle: "A", shelf: "18", bin: "3", warrantyExpiration: new Date("2026-11-05"), condition: "New", notes: "Hydraulic filter, 10 micron", imageUrl: partImage("filter", "DONALDSON-P551000", "Donaldson") } }),
-    prisma.part.create({ data: { name: "Coupling Assembly", partNumber: "LOVEJOY-L150", manufacturer: "Lovejoy", modelNumber: "L-150", serialNumber: null, totalQuantity: 12, location: "Warehouse B", aisle: "B", shelf: "08", bin: "2", warrantyExpiration: new Date("2027-02-28"), condition: "New", notes: "Jaw coupling, complete assembly", imageUrl: partImage("coupling", "LOVEJOY-L150", "Lovejoy") } }),
-    prisma.part.create({ data: { name: "Temperature Sensor", partNumber: "OMEGA-KMQSS-125", manufacturer: "Omega Engineering", modelNumber: "KMQSS-125U-6", serialNumber: "OMG2024556677", totalQuantity: 18, location: "Warehouse B", aisle: "B", shelf: "04", bin: "1", warrantyExpiration: new Date("2026-10-15"), condition: "New", notes: 'Type K thermocouple, 1/8" dia, 6" length', imageUrl: partImage("sensor", "OMEGA-KMQSS-125", "Omega Engineering") } }),
-    prisma.part.create({ data: { name: "Used VFD Drive", partNumber: "ABB-ACS550-01", manufacturer: "ABB", modelNumber: "ACS550-01-08A8-4", serialNumber: "ABB2022112244", totalQuantity: 1, location: "Warehouse C", aisle: "C", shelf: "04", bin: "2", warrantyExpiration: null, condition: "Used", notes: "Variable frequency drive, 7.5HP, tested working", imageUrl: partImage("drive", "ABB-ACS550-01", "ABB") } }),
-    prisma.part.create({ data: { name: "Gearbox Assembly", partNumber: "SEW-R57DRE90", manufacturer: "SEW-Eurodrive", modelNumber: "R57DRE90M4", serialNumber: "SEW2024667788", totalQuantity: 4, location: "Warehouse B", aisle: "B", shelf: "12", bin: "1", warrantyExpiration: new Date("2028-05-20"), condition: "New", notes: "Helical gear unit with motor, ratio 28.31:1", imageUrl: partImage("gearbox", "SEW-R57DRE90", "SEW-Eurodrive") } }),
-  ]);
-
-  const byNumber = Object.fromEntries(parts.map((p) => [p.partNumber, p]));
-
-  await Promise.all([
-    prisma.reservation.create({ data: { partId: byNumber["M9208-GGA-3"].id, projectId: projects[0].id, quantity: 3, status: "Reserved", notes: "Damper actuators for rooftop unit RTU-2" } }),
-    prisma.reservation.create({ data: { partId: byNumber["SKF-6205-2RS"].id, projectId: projects[1].id, quantity: 10, status: "Reserved", notes: "For conveyor roller replacement" } }),
-    prisma.reservation.create({ data: { partId: byNumber["PARKER-PGP505"].id, projectId: projects[2].id, quantity: 1, status: "Ready for Pickup", notes: "Critical replacement for pump station" } }),
-    prisma.reservation.create({ data: { partId: byNumber["ABB-AF09-30-10"].id, projectId: projects[3].id, quantity: 8, status: "Reserved", notes: "For new electrical panel installation" } }),
-    prisma.reservation.create({ data: { partId: byNumber["GATES-8V1400"].id, projectId: projects[0].id, quantity: 6, status: "Reserved", notes: "For blower motor assembly" } }),
-  ]);
-
-  for (const part of parts) {
-    const active = await prisma.reservation.findMany({
-      where: { partId: part.id, status: { in: ACTIVE_STATUSES } },
-      select: { quantity: true },
     });
-    const reservedQuantity = active.reduce((sum, r) => sum + r.quantity, 0);
-    await prisma.part.update({ where: { id: part.id }, data: { reservedQuantity } });
+    reservationCount++;
+    if (ACTIVE_STATUSES.includes(plan.status)) {
+      reservedByPartId.set(part.id, (reservedByPartId.get(part.id) ?? 0) + plan.quantity);
+    }
   }
 
+  // Update reservedQuantity only for the affected parts (fast on a hosted DB).
+  for (const [partId, reservedQuantity] of reservedByPartId) {
+    await prisma.part.update({ where: { id: partId }, data: { reservedQuantity } });
+  }
+
+  // A few activity-log entries so the dashboard feels alive.
+  const hero = await prisma.part.findUnique({ where: { partNumber: HERO_PART_NUMBER } });
   const activities: {
     type: "PART_CREATED" | "QUANTITY_ADDED" | "PART_MOVED" | "RESERVATION_CREATED" | "RESERVATION_READY" | "PART_PICKED_UP";
     details: string;
-    partId?: string;
-    projectId?: string;
+    partId?: string | null;
+    projectId?: string | null;
   }[] = [
-    { type: "PART_CREATED", details: "Added 12 units of M9208-GGA-3 Actuator", partId: byNumber["M9208-GGA-3"].id },
-    { type: "PART_CREATED", details: "Added 48 units of Industrial Ball Bearing", partId: byNumber["SKF-6205-2RS"].id },
-    { type: "PART_CREATED", details: "Added 5 units of Hydraulic Pump Motor", partId: byNumber["PARKER-PGP505"].id },
-    { type: "RESERVATION_CREATED", details: "Reserved 3 M9208-GGA-3 Actuators for HVAC System Upgrade", partId: byNumber["M9208-GGA-3"].id, projectId: projects[0].id },
-    { type: "RESERVATION_CREATED", details: "Reserved 10 Ball Bearings for Assembly Line Maintenance", partId: byNumber["SKF-6205-2RS"].id, projectId: projects[1].id },
-    { type: "RESERVATION_CREATED", details: "Reserved 1 Hydraulic Pump Motor for Emergency Pump Repair", partId: byNumber["PARKER-PGP505"].id, projectId: projects[2].id },
-    { type: "RESERVATION_READY", details: "Hydraulic Pump Motor staged for Emergency Pump Repair", partId: byNumber["PARKER-PGP505"].id, projectId: projects[2].id },
-    { type: "PART_MOVED", details: "Moved Industrial Filter Element to Warehouse A, Aisle A, Shelf 18", partId: byNumber["DONALDSON-P551000"].id },
-    { type: "RESERVATION_CREATED", details: "Reserved 8 Contactor Relays for Electrical Panel Replacement", partId: byNumber["ABB-AF09-30-10"].id, projectId: projects[3].id },
-    { type: "PART_CREATED", details: "Added 4 units of Gearbox Assembly", partId: byNumber["SEW-R57DRE90"].id },
+    { type: "PART_CREATED", details: `Imported ${jcInventory.length} parts from Johnson Controls warehouse export`, partId: null },
+    { type: "PART_CREATED", details: "Added 12 units of M9208-GGA-3 Actuator", partId: hero?.id ?? null },
+    { type: "RESERVATION_CREATED", details: "Reserved 3 M9208-GGA-3 Actuators for HVAC System Upgrade", partId: hero?.id ?? null, projectId: projects[0].id },
+    { type: "RESERVATION_CREATED", details: "Reserved 5 MC TrueAlert strobes for Fire Alarm Panel Retrofit", projectId: projects[1].id },
+    { type: "RESERVATION_READY", details: "AV Wall Red Fire staged for Emergency Pump Repair", projectId: projects[2].id },
+    { type: "PART_MOVED", details: "Recounted Row 5 during Warehouse Recount 2026" },
   ];
 
   for (let i = 0; i < activities.length; i++) {
@@ -164,6 +219,11 @@ export async function seedDatabase(prisma: PrismaClient): Promise<SeedResult> {
     });
   }
 
-  const units = parts.reduce((sum, p) => sum + p.totalQuantity, 0);
-  return { projects: projects.length, parts: parts.length, units, reservations: 5, activities: activities.length };
+  return {
+    projects: projects.length,
+    parts: totalParts,
+    units,
+    reservations: reservationCount,
+    activities: activities.length,
+  };
 }
