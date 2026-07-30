@@ -81,6 +81,19 @@ export default function UserAdminPage() {
     else setError((await response.json()).error ?? "Unable to update user.");
   }
 
+  async function resendInvite(user: User) {
+    setMessage("");
+    setError("");
+    setBusy(true);
+    const response = await fetch(`/api/admin/users/${user.id}/resend-invite`, {
+      method: "POST",
+    });
+    const body = await response.json();
+    if (response.ok) setMessage(body.message);
+    else setError(body.error ?? "Unable to resend the invitation.");
+    setBusy(false);
+  }
+
   async function removeUser(user: User) {
     if (
       !window.confirm(
@@ -161,7 +174,7 @@ export default function UserAdminPage() {
               <th className="px-4 py-3">User</th>
               <th className="px-4 py-3">Role</th>
               <th className="px-4 py-3">Access</th>
-              <th className="px-4 py-3 text-right">Remove</th>
+              <th className="px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -223,18 +236,27 @@ export default function UserAdminPage() {
                       {user.active ? "Active" : "Disabled"}
                     </button>
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    {isSelf ? (
-                      <span className="text-xs text-gray-400">—</span>
-                    ) : (
+                  <td className="px-4 py-3">
+                    <div className="flex justify-end gap-1">
                       <button
                         type="button"
-                        onClick={() => removeUser(user)}
-                        className="rounded px-3 py-1.5 font-medium text-red-700 hover:bg-red-50"
+                        onClick={() => resendInvite(user)}
+                        disabled={busy || !user.active}
+                        title="Email a fresh link to set a password"
+                        className="rounded px-3 py-1.5 font-medium text-primary-700 hover:bg-primary-50 disabled:opacity-50"
                       >
-                        Remove
+                        Resend invite
                       </button>
-                    )}
+                      {!isSelf && (
+                        <button
+                          type="button"
+                          onClick={() => removeUser(user)}
+                          className="rounded px-3 py-1.5 font-medium text-red-700 hover:bg-red-50"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
@@ -243,9 +265,10 @@ export default function UserAdminPage() {
         </table>
       </div>
       <p className="mt-3 text-sm text-gray-500">
-        Disabling keeps a person&apos;s history and lets you restore access later.
-        Removing deletes their sign-in; audit entries stay, attributed to their
-        email address.
+        Invited users set their own password from the emailed link. If that link
+        expired, use <strong>Resend invite</strong>. Disabling keeps a
+        person&apos;s history and lets you restore access later. Removing deletes
+        their sign-in; audit entries stay, attributed to their email address.
       </p>
     </div>
   );

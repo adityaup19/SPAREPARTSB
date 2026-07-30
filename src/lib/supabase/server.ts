@@ -31,6 +31,14 @@ export async function createSupabaseServerClient() {
   });
 }
 
+/** Session-free client for public auth calls such as sending password emails. */
+export function createSupabaseAuthClient() {
+  const { url, key } = publicConfig();
+  return createAdminClient(url, key, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+}
+
 export function createSupabaseAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

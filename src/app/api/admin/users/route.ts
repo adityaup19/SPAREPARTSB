@@ -2,6 +2,7 @@ import { authorize } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { logActivity } from "@/lib/inventory";
 import { logger } from "@/lib/logger";
+import { invitationRedirectUrl } from "@/lib/invitations";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
     const email = data.email.toLowerCase();
     const displayName = data.displayName ?? email.split("@")[0];
     const supabase = createSupabaseAdminClient();
-    const redirectTo = `${request.nextUrl.origin}/auth/callback?next=/auth/reset-password`;
+    const redirectTo = invitationRedirectUrl(request.nextUrl.origin);
 
     const invite = await supabase.auth.admin.inviteUserByEmail(email, {
       redirectTo,

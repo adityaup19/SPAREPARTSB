@@ -12,8 +12,28 @@ is read on every request, so changes apply instantly without a redeploy.
 - Admins can additionally delete records and administer users.
 
 Admins invite people from **User Admin**, where they can also change a role,
-disable or reactivate an account, and remove a user. Invitation links return
-through `/auth/callback` so the person sets their own password.
+disable or reactivate an account, resend an invitation, and remove a user.
+
+### Invitation flow
+
+1. An admin invites an email address and picks a role.
+2. Supabase emails an invitation link pointing at `<site>/auth/callback`.
+3. The callback verifies the token and establishes the session. It accepts all
+   three link styles Supabase can send: a PKCE `code`, a `token_hash`, or tokens
+   in the URL fragment.
+4. The invited person lands on `/auth/set-password`, creates and confirms a
+   password against their authenticated session, and enters the app.
+5. Expired or already-used links show a clear message telling them to ask an
+   admin for a new one. **Resend invite** emails a fresh link.
+
+Invited users are never sent to the sign-in form, because they have no password
+yet. People who already had a Supabase login before being granted access keep
+using their existing password and sign in normally.
+
+Invitation links use `NEXT_PUBLIC_SITE_URL`, falling back to the Vercel
+production domain, so emails never point at a preview deployment. Localhost is
+used only when running locally. `<site>/auth/callback` must be listed under
+Supabase → Authentication → URL Configuration → Redirect URLs.
 
 A signed-in identity with no `AppUser` row has no access at all, so creating a
 user directly in Supabase Authentication grants nothing. Public sign-up should
@@ -34,6 +54,8 @@ Set `DATABASE_URL`, `DIRECT_URL`, `NEXT_PUBLIC_SUPABASE_URL`,
 `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`,
 and `OCR_DAILY_USER_LIMIT` in Vercel, plus `ADMIN_EMAILS` for the first sign-in
 only. Never set `ALLOW_DEMO_SEED` in production.
+
+Set `NEXT_PUBLIC_SITE_URL` to the production URL so invitation emails link to it.
 
 In Supabase Auth URL Configuration, set the site URL to the Vercel production
 URL and allow `https://<production-host>/auth/callback`.
