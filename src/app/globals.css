@@ -12,6 +12,132 @@ body {
   background: rgb(var(--background-rgb));
 }
 
+.dark {
+  --foreground-rgb: 226, 232, 240;
+  --background-rgb: 2, 6, 23;
+}
+
+.dark body {
+  color-scheme: dark;
+}
+
+/* Dark equivalents for the shared light utility palette. Keeping these here
+   makes the existing screens switch together without duplicating a dark:
+   variant on every card, table cell, label, and form control. */
+.dark .bg-white {
+  background-color: #0f172a;
+}
+
+.dark .bg-gray-50 {
+  background-color: #020617;
+}
+
+.dark .bg-gray-100 {
+  background-color: #1e293b;
+}
+
+.dark .bg-gray-200 {
+  background-color: #334155;
+}
+
+.dark .text-gray-900 {
+  color: #f1f5f9;
+}
+
+.dark .text-gray-700,
+.dark .text-gray-600 {
+  color: #cbd5e1;
+}
+
+.dark .text-gray-500 {
+  color: #94a3b8;
+}
+
+.dark .text-gray-400 {
+  color: #64748b;
+}
+
+.dark .border-gray-100,
+.dark .border-gray-200 {
+  border-color: #1e293b;
+}
+
+.dark .border-gray-300 {
+  border-color: #475569;
+}
+
+.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #1e293b;
+}
+
+.dark .bg-primary-50 {
+  background-color: #172554;
+}
+
+.dark .text-primary-700 {
+  color: #93c5fd;
+}
+
+.dark .border-white {
+  border-color: #0f172a;
+}
+
+.dark .bg-red-50 {
+  background-color: rgb(127 29 29 / 0.3);
+}
+
+.dark .text-red-700,
+.dark .text-red-600 {
+  color: #fca5a5;
+}
+
+.dark .bg-green-50 {
+  background-color: rgb(20 83 45 / 0.35);
+}
+
+.dark .text-green-700,
+.dark .text-green-600 {
+  color: #86efac;
+}
+
+.dark .bg-yellow-50,
+.dark .bg-amber-50 {
+  background-color: rgb(120 53 15 / 0.3);
+}
+
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: #0f172a;
+  color: #f1f5f9;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #64748b;
+}
+
+.dark .hover\:bg-gray-50:hover,
+.dark .hover\:bg-gray-100:hover {
+  background-color: #1e293b;
+}
+
+.dark .hover\:text-gray-900:hover {
+  color: #f8fafc;
+}
+
+.dark .hover\:bg-primary-50:hover {
+  background-color: #172554;
+}
+
+.dark .hover\:bg-red-50:hover {
+  background-color: rgb(127 29 29 / 0.3);
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: #475569;
+}
+
 @layer utilities {
   .scrollbar-thin {
     scrollbar-width: thin;
