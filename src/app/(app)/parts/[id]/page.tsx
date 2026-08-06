@@ -38,6 +38,7 @@ import {
   Save,
   X,
   Move,
+  Search,
 } from "lucide-react";
 import Link from "next/link";
 import { formatDate, formatDateTime, getConditionColor, getStatusColor, daysUntil } from "@/lib/utils";
@@ -92,6 +93,7 @@ export default function PartDetailsPage({ params }: { params: Promise<{ id: stri
   const [showMoveModal, setShowMoveModal] = useState(false);
 
   const [reserveData, setReserveData] = useState({ projectId: "", quantity: 1, notes: "" });
+  const [projectSearch, setProjectSearch] = useState("");
   const [adjustData, setAdjustData] = useState({ mode: "add", amount: 1, reason: "" });
   const [moveData, setMoveData] = useState({ location: "", aisle: "", shelf: "", bin: "" });
 
@@ -120,6 +122,10 @@ export default function PartDetailsPage({ params }: { params: Promise<{ id: stri
       console.error("Error fetching projects:", error);
     }
   };
+
+  const filteredProjects = projects.filter((project) =>
+    project.name.toLowerCase().includes(projectSearch.trim().toLowerCase())
+  );
 
   useEffect(() => {
     fetchPart();
@@ -531,14 +537,43 @@ export default function PartDetailsPage({ params }: { params: Promise<{ id: stri
       </Modal>
 
       {/* Reserve Modal */}
-      <Modal isOpen={showReserveModal} onClose={() => setShowReserveModal(false)} title="Reserve Parts" size="md">
+      <Modal
+        isOpen={showReserveModal}
+        onClose={() => {
+          setShowReserveModal(false);
+          setProjectSearch("");
+        }}
+        title="Reserve Parts"
+        size="md"
+      >
         <div className="space-y-4">
           <Alert variant="info">{availableQuantity} units available for reservation</Alert>
+          <div className="relative">
+            <Search className="pointer-events-none absolute bottom-2.5 left-3 h-4 w-4 text-gray-400" />
+            <Input
+              label="Search Projects"
+              value={projectSearch}
+              onChange={(e) => setProjectSearch(e.target.value)}
+              placeholder="Type a project name..."
+              className="pl-9"
+            />
+          </div>
           <Select
             label="Project"
-            options={[{ value: "", label: "Select a project" }, ...projects.map((p) => ({ value: p.id, label: p.name }))]}
+            options={[
+              {
+                value: "",
+                label: projectSearch && filteredProjects.length === 0
+                  ? "No matching projects"
+                  : "Select a project",
+              },
+              ...filteredProjects.map((p) => ({ value: p.id, label: p.name })),
+            ]}
             value={reserveData.projectId}
-            onChange={(e) => setReserveData({ ...reserveData, projectId: e.target.value })}
+            onChange={(e) => {
+              setReserveData({ ...reserveData, projectId: e.target.value });
+              if (e.target.value) setProjectSearch("");
+            }}
           />
           <Input
             label="Quantity"
@@ -556,7 +591,10 @@ export default function PartDetailsPage({ params }: { params: Promise<{ id: stri
             placeholder="Optional notes about this reservation..."
           />
           <div className="flex justify-end gap-3 pt-2">
-            <Button variant="ghost" onClick={() => setShowReserveModal(false)}>Cancel</Button>
+            <Button variant="ghost" onClick={() => {
+              setShowReserveModal(false);
+              setProjectSearch("");
+            }}>Cancel</Button>
             <Button onClick={handleReserve} disabled={saving || !reserveData.projectId || reserveData.quantity > availableQuantity}>
               {saving ? "Reserving..." : "Create Reservation"}
             </Button>
