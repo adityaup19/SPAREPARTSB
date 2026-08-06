@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { PageHeader } from "@/components/layout";
 import {
   Card,
@@ -205,7 +206,20 @@ export default function ProjectsPage() {
               </TableHeader>
               <TableBody>
                 {projects.map((project) => (
-                  <TableRow key={project.id}>
+                  <TableRow
+                    key={project.id}
+                    className="cursor-pointer transition-colors hover:bg-gray-50 focus-visible:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500"
+                    onClick={() => handleOpenDetail(project)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        handleOpenDetail(project);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`View ${project.name} parts`}
+                  >
                     <TableCell>
                       <div>
                         <p className="font-medium">{project.name}</p>
@@ -231,21 +245,33 @@ export default function ProjectsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleOpenDetail(project)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleOpenDetail(project);
+                          }}
+                          aria-label={`View ${project.name}`}
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
                         {canManage && <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleOpenEdit(project)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleOpenEdit(project);
+                          }}
+                          aria-label={`Edit ${project.name}`}
                         >
                           <Edit className="w-4 h-4" />
                         </Button>}
                         {currentUser.role === "ADMIN" && <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDelete(project.id)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleDelete(project.id);
+                          }}
+                          aria-label={`Delete ${project.name}`}
                         >
                           <Trash2 className="w-4 h-4 text-red-500" />
                         </Button>}
@@ -258,7 +284,20 @@ export default function ProjectsPage() {
             </div>
             <div className="space-y-3 p-3 md:hidden">
               {projects.map((project) => (
-                <div key={project.id} className="rounded-lg border border-gray-200 p-4">
+                <div
+                  key={project.id}
+                  className="cursor-pointer rounded-lg border border-gray-200 p-4 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                  onClick={() => handleOpenDetail(project)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      handleOpenDetail(project);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`View ${project.name} parts`}
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-medium text-gray-900">{project.name}</p>
@@ -270,8 +309,14 @@ export default function ProjectsPage() {
                     {project._count.reservations} reservations · {getTotalReserved(project)} units
                   </p>
                   <div className="mt-3 flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => handleOpenDetail(project)}>View</Button>
-                    {canManage && <Button size="sm" variant="outline" onClick={() => handleOpenEdit(project)}>Edit</Button>}
+                    <Button size="sm" variant="outline" onClick={(event) => {
+                      event.stopPropagation();
+                      handleOpenDetail(project);
+                    }}>View Parts</Button>
+                    {canManage && <Button size="sm" variant="outline" onClick={(event) => {
+                      event.stopPropagation();
+                      handleOpenEdit(project);
+                    }}>Edit</Button>}
                   </div>
                 </div>
               ))}
@@ -365,7 +410,13 @@ export default function ProjectsPage() {
                         <TableRow key={reservation.id}>
                           <TableCell>
                             <div>
-                              <p className="font-medium">{reservation.part.name}</p>
+                              <Link
+                                href={`/parts/${reservation.part.id}`}
+                                className="font-medium text-blue-600 hover:underline"
+                                onClick={() => setShowDetailModal(false)}
+                              >
+                                {reservation.part.name}
+                              </Link>
                               <p className="text-xs text-gray-500">{reservation.part.partNumber}</p>
                             </div>
                           </TableCell>
