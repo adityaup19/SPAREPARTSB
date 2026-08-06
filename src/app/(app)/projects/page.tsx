@@ -66,8 +66,15 @@ export default function ProjectsPage() {
   const fetchProjects = async () => {
     try {
       const response = await fetch("/api/projects");
-      const data = await response.json();
+      const data: ProjectWithReservations[] = await response.json();
       setProjects(data);
+
+      const projectId = new URLSearchParams(window.location.search).get("project");
+      const linkedProject = data.find((project) => project.id === projectId);
+      if (linkedProject) {
+        setSelectedProject(linkedProject);
+        setShowDetailModal(true);
+      }
     } catch (error) {
       console.error("Error fetching projects:", error);
     } finally {

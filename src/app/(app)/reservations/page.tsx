@@ -215,8 +215,14 @@ export default function ReservationsPage() {
                         </Link>
                       </TableCell>
                       <TableCell>
-                        <p className="font-medium">{r.project.name}</p>
-                        <Badge className={`${getStatusColor(r.project.status)} text-xs mt-1`}>{r.project.status}</Badge>
+                        <Link
+                          href={`/projects?project=${r.project.id}`}
+                          className="inline-block rounded-sm hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                          aria-label={`View ${r.project.name}`}
+                        >
+                          <p className="font-medium hover:underline">{r.project.name}</p>
+                          <Badge className={`${getStatusColor(r.project.status)} text-xs mt-1`}>{r.project.status}</Badge>
+                        </Link>
                       </TableCell>
                       <TableCell className="font-medium">{r.quantity} units</TableCell>
                       <TableCell><Badge className={getStatusColor(r.status)}>{r.status}</Badge></TableCell>
@@ -234,11 +240,18 @@ export default function ReservationsPage() {
               <Card key={r.id}>
                 <CardContent className="py-4">
                   <div className="flex items-start justify-between gap-3">
-                    <Link href={`/parts/${r.part.id}`} className="min-w-0">
-                      <p className="font-medium text-gray-900 truncate">{r.part.name}</p>
-                      <p className="text-xs text-gray-500 font-mono">{r.part.partNumber}</p>
-                      <p className="text-sm text-gray-500 mt-1">{r.project.name}</p>
-                    </Link>
+                    <div className="min-w-0">
+                      <Link href={`/parts/${r.part.id}`} className="hover:text-primary-600">
+                        <p className="font-medium text-gray-900 truncate">{r.part.name}</p>
+                        <p className="text-xs text-gray-500 font-mono">{r.part.partNumber}</p>
+                      </Link>
+                      <Link
+                        href={`/projects?project=${r.project.id}`}
+                        className="mt-1 block text-sm font-medium text-primary-600 hover:underline"
+                      >
+                        {r.project.name}
+                      </Link>
+                    </div>
                     <Badge className={getStatusColor(r.status)}>{r.status}</Badge>
                   </div>
                   <div className="flex items-center justify-between mt-3">
