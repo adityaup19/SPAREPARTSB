@@ -346,8 +346,8 @@ export default function ScanPage() {
   return (
     <div className="max-w-2xl mx-auto">
       <PageHeader
-        title="Scan a Part"
-        description="Capture a label, review the details, and update inventory"
+        title="Add a Part"
+        description="Scan a label or enter the part details manually"
       />
 
       {/* Step indicator */}
@@ -638,7 +638,7 @@ export default function ScanPage() {
               <div className="mt-6 flex flex-col sm:flex-row gap-3 w-full max-w-sm">
                 <Button className="flex-1" onClick={resetAll}>
                   <ScanLine className="w-4 h-4 mr-2" />
-                  Scan Another
+                  Add Another Part
                 </Button>
                 <Link href={`/parts/${confirmInfo.partId}`} className="flex-1">
                   <Button variant="outline" className="w-full">

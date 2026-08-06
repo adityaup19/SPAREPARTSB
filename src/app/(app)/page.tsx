@@ -11,7 +11,6 @@ import {
   ScanLine,
   Search,
   ClipboardList,
-  PlusCircle,
 } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
 import { activityLabel } from "@/lib/inventory";
@@ -80,7 +79,7 @@ export default async function DashboardPage() {
         description="Overview of your warehouse inventory"
       />
 
-      {/* Primary action: Scan a Part (prioritized on mobile via ordering) */}
+      {/* Primary add-part action (prioritized on mobile via ordering) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
         <Link
           href="/scan"
@@ -89,7 +88,7 @@ export default async function DashboardPage() {
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-medium text-primary-100">Warehouse worker</p>
-              <h2 className="text-2xl font-bold mt-1">Scan a Part</h2>
+              <h2 className="text-2xl font-bold mt-1">Add a Part</h2>
               <p className="text-sm text-primary-100 mt-1">
                 Photograph a label, review the details, and update inventory in seconds.
               </p>
@@ -100,10 +99,9 @@ export default async function DashboardPage() {
           </div>
         </Link>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
           <QuickAction href="/inventory" icon={Search} label="Search Inventory" />
           <QuickAction href="/reservations" icon={ClipboardList} label="View Reservations" />
-          <QuickAction href="/parts/add" icon={PlusCircle} label="Add Part Manually" />
         </div>
       </div>
 
@@ -281,7 +279,7 @@ export default async function DashboardPage() {
                 className="flex flex-col items-center justify-center p-4 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors"
               >
                 <ScanLine className="w-8 h-8 text-primary-600 mb-2" />
-                <span className="text-sm font-medium text-primary-700">Scan a Part</span>
+                <span className="text-sm font-medium text-primary-700">Add a Part</span>
               </Link>
               <Link
                 href="/inventory"

@@ -14,7 +14,7 @@ import { usePathname } from "next/navigation";
 const items = [
   { name: "Home", href: "/", icon: LayoutDashboard },
   { name: "Inventory", href: "/inventory", icon: Package },
-  { name: "Scan", href: "/scan", icon: ScanLine, primary: true },
+  { name: "Add", href: "/scan", icon: ScanLine, primary: true },
   { name: "Reserve", href: "/reservations", icon: ClipboardList },
   { name: "Projects", href: "/projects", icon: FolderKanban },
 ];

@@ -4,7 +4,6 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
   Package,
-  PlusCircle,
   ClipboardList,
   FolderKanban,
   ScanLine,
@@ -31,11 +30,10 @@ type NavigationItem = {
 
 const navigation: NavigationItem[] = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Scan a Part", href: "/scan", icon: ScanLine },
+  { name: "Add a Part", href: "/scan", icon: ScanLine },
   { name: "Inventory", href: "/inventory", icon: Package },
   { name: "Reservations", href: "/reservations", icon: ClipboardList },
   { name: "Projects", href: "/projects", icon: FolderKanban },
-  { name: "Add Part", href: "/parts/add", icon: PlusCircle },
   { name: "Import / Export", href: "/inventory/import", icon: FileUp, managerOnly: true },
   { name: "Audit History", href: "/audit", icon: History, managerOnly: true },
   { name: "User Admin", href: "/admin/users", icon: ShieldCheck, adminOnly: true },

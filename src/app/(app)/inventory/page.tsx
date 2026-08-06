@@ -100,7 +100,7 @@ export default function InventoryPage() {
           <Link href="/scan">
             <Button>
               <ScanLine className="w-4 h-4 mr-2" />
-              Scan a Part
+              Add a Part
             </Button>
           </Link>
         }
@@ -165,7 +165,7 @@ export default function InventoryPage() {
                 <Link href="/scan">
                   <Button>
                     <ScanLine className="w-4 h-4 mr-2" />
-                    Scan a Part
+                    Add a Part
                   </Button>
                 </Link>
               }
